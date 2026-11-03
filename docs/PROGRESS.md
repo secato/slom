@@ -6,7 +6,7 @@ Milestones (one commit each):
 - [x] M1 `steam` package: discovery, games, VDF read, localconfig writer, process detection
 - [x] M2 `catalog`, `render`, `parse` with round-trip tests
 - [x] M3 `store`: presets, assignments (backups already live in `steam.WriteLaunchOptions`)
-- [ ] M4 `ui`: vertical slice, then full screens
+- [x] M4 `ui`: game list, preset bar, tabbed option editor, extras chips, preview, apply flows
 - [ ] M5 Test-button spike (`steam://run/<id>//<options>/`)
 - [ ] M6 README with screenshot, final docs
 
@@ -30,3 +30,10 @@ Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, lis
 - `catalog.ForceSet` (override wins over a conflicting preset value) and `catalog.Normalize` (drops orphaned/invalid values) exist for this merge.
 - "Out of date" for a game = rendered effective line differs from the line currently in `localconfig.vdf` (computed by the app layer, not stored).
 - A corrupt JSON file is an error on `Open`; it is never overwritten silently.
+
+## Notes from M4
+- Files: `internal/ui/app.go` (state and actions: select/import, commit, presets, apply, close-Steam-and-apply), `view.go` (layout), `system.go` (display defaults), `files.go`, `ui_test.go` (Tester-based tests).
+- Behavior: selecting a game imports Steam's line (no assignment is saved until the user edits). Every edit autosaves the game's `Assignment` (never touches Steam). Apply writes `localconfig.vdf` via `steam.WriteLaunchOptions`; a bare `%command%` is written as "no launch options". "Pending" = configured line != line in Steam.
+- Int options start from the system: `catalog.Initial` uses `Option.DefaultFrom` (`screen.width/height/refresh`) resolved by `detectDefaults`.
+- The binary was smoke-tested for 8 s against the real Steam install (read-only; nothing written).
+- Not done / ideas: Windows, Proton version selection, a visible "overridden" legend, keyboard shortcuts.
