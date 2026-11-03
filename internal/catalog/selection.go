@@ -255,3 +255,72 @@ func (s Selection) IsEmptyExceptArgs() bool {
 	s.CustomArgs = nil
 	return s.IsEmpty()
 }
+
+// ForceSet sets an option like Set, but resolves conflicts by switching the conflicting
+// options off instead of failing.
+func (c *Catalog) ForceSet(sel *Selection, id, v string) ([]string, error) {
+	o := c.Get(id)
+	if o == nil {
+		return nil, fmt.Errorf("unknown option %q", id)
+	}
+	var notes []string
+	if v != "" {
+		for _, x := range c.conflictIDs(sel, o) {
+			n, _ := c.Set(sel, x, "")
+			notes = append(notes, n...)
+		}
+	}
+	n, err := c.Set(sel, id, v)
+	return append(notes, n...), err
+}
+
+func (c *Catalog) conflictIDs(sel *Selection, o *Option) []string {
+	var out []string
+	for id := range sel.Values {
+		if id == o.ID {
+			continue
+		}
+		for _, x := range o.Conflicts {
+			if x == id {
+				out = append(out, id)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Normalize drops values that cannot take effect: options whose wrapper or requirements
+// are not set, and invalid values. It does not look at which tools are installed.
+func (c *Catalog) Normalize(sel *Selection) {
+	for changed := true; changed; {
+		changed = false
+		for id, v := range sel.Values {
+			o := c.Get(id)
+			bad := o == nil || o.Validate(v) != nil
+			if !bad && o.Host != "" {
+				_, bad = sel.Values[o.Host]
+				bad = !bad
+			}
+			for _, r := range o.requires() {
+				if _, on := sel.Values[r]; !on {
+					bad = true
+				}
+			}
+			if bad {
+				delete(sel.Values, id)
+				changed = true
+			}
+		}
+	}
+	if len(sel.Values) == 0 {
+		sel.Values = nil
+	}
+}
+
+func (o *Option) requires() []string {
+	if o == nil {
+		return nil
+	}
+	return o.Requires
+}
