@@ -20,3 +20,4 @@ Read in this order:
 - Unrecognized tokens in an imported launch line are preserved in order, never dropped.
 - One commit per milestone. Commit author: Felipe Secato. Keep `docs/PROGRESS.md` current in the same commit.
 - Verify: `go build ./... && go vet ./... && go test ./...`.
+- Opt-in checks that touch the real machine (Steam must be closed unless noted): `SLOM_REAL_APPLY=<appid>` / `SLOM_REAL_CLOSE=<appid>` tests in `internal/steam/real_test.go`, `scripts/e2e.py` (real window), `scripts/spike-test-launch.sh`. They restore what they change; read `docs/PROGRESS.md` first.

@@ -161,3 +161,32 @@ func isAlias(c *catalog.Catalog, flag string) bool {
 	}
 	return false
 }
+
+func TestGroupAndUngroup(t *testing.T) {
+	tests := []struct {
+		in   []string
+		want []string
+	}{
+		{[]string{"taskset", "-c", "0-3"}, []string{"taskset -c 0-3"}},
+		{[]string{"taskset", "-c", "0-3", "nice", "-n", "5"}, []string{"taskset -c 0-3", "nice -n 5"}},
+		{[]string{"-windowed", "-novid"}, []string{"-windowed", "-novid"}},
+		{[]string{"-a", "'b c'", "-d"}, []string{"-a 'b c'", "-d"}},
+		{[]string{"--weird-flag", "12", "--other"}, []string{"--weird-flag 12", "--other"}},
+		{[]string{"/WineDetectionEnabled:False"}, []string{"/WineDetectionEnabled:False"}},
+		{[]string{"env", "A=1", "--", "foo", "-x"}, []string{"env A=1 --", "foo -x"}},
+		{nil, nil},
+	}
+	for _, tc := range tests {
+		got := Group(tc.in)
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("Group(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+		if back := Ungroup(got); !reflect.DeepEqual(back, tc.in) && !(len(back) == 0 && len(tc.in) == 0) {
+			t.Errorf("Ungroup(Group(%q)) = %q", tc.in, back)
+		}
+	}
+	// an edited chip may hold several tokens, quoted values and commas survive, and empty chips vanish
+	if got := Ungroup([]string{"A=1 B=2", "WINEDLLOVERRIDES=dxgi=n,b", "", "  "}); !reflect.DeepEqual(got, []string{"A=1", "B=2", "WINEDLLOVERRIDES=dxgi=n,b"}) {
+		t.Errorf("Ungroup = %q", got)
+	}
+}

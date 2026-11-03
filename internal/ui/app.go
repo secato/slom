@@ -47,11 +47,13 @@ type App struct {
 	sidebarSize float32
 
 	// the game being edited
-	cur      *steam.Game
-	sel      catalog.Selection
-	presetID string
-	notes    []string
-	tab      int // the option group shown
+	cur       *steam.Game
+	sel       catalog.Selection
+	presetID  string
+	notes     []string
+	tab       int                 // the option group shown
+	chips     map[string][]string // chip editor state, by game and field
+	chipDraft map[string]string   // the text typed into each "Add…" field
 
 	// dialogs
 	rawOpen        bool
@@ -70,6 +72,7 @@ func New(st *store.Store, backups string) *App {
 	a := &App{
 		cat: catalog.Default(), store: st, backups: backups,
 		steamLines: map[string]string{}, sidebarSize: 300,
+		chips: map[string][]string{}, chipDraft: map[string]string{},
 	}
 	a.tools = catalog.DetectTools(a.cat)
 	return a

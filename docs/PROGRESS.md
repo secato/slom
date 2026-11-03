@@ -51,12 +51,14 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 - `Option.Platform` exists and is `"linux"` for every option (asserted in tests).
 - Spike script now warns that the game may really start and asks for confirmation.
 
-## Known limitations (not fixed)
-- `TokenField` splits on commas, so a custom chip like `WINEDLLOVERRIDES=dxgi=n,b` breaks into two chips. Use "Edit as text…" for such values.
-- Chips are one per token; the spec wanted a chip per unrecognized token *or `-- wrapper` group* (`taskset -c 0-3` shows as three chips).
-- Not exercised: Flatpak Steam, multiple accounts, and the UI buttons on a real desktop (the underlying steps below were).
+## Known limitations
+- Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.
+- Multiple Steam accounts are covered by `TestSwitchingSteamAccount` (fixtures), not by a real second account.
+- Chip fields: editing a chip in place does not re-group it until the game is reopened; grouping is a heuristic (`parse.Group`: a program with its flags and their values, or a flag with its value).
 
 ## Verified on the real machine (2026-11-03)
 - `SLOM_REAL_APPLY=<appid> go test ./internal/steam -run RealApply`: wrote a launch option to the real `localconfig.vdf` with Steam closed, read it back, restored it; the file was byte-identical afterwards.
 - `SLOM_REAL_CLOSE=<appid> go test ./internal/steam -run RealCloseApplyReopen`: refused to write while Steam ran (`ErrSteamRunning`), `steam -shutdown` and wait, write + restore, restart Steam, shut it down again. Afterwards every `LaunchOptions` line matched the original (only Steam's own tickets and change numbers differed).
 - Both tests are opt-in (they touch the real install) and skipped by default.
+- Chips were reworked: `parse.Group`/`Ungroup` (one chip per program-with-flags or flag-with-value, `--` ends a group), each chip a text field edited in place, no comma splitting (`WINEDLLOVERRIDES=dxgi=n,b` stays one token). Chip state lives in `App.chips` while typing so a chip never re-splits under the cursor.
+- Real-window end-to-end: `go build -tags e2e -o /tmp/slom-e2e ./cmd/slom && python3 scripts/e2e.py /tmp/slom-e2e "<game name>"` drives the built app through MyGo's automation plugin (`cmd/slom/e2e.go`, build tag `e2e`, socket from `MYGO_AUTOMATION`). Passed on 2026-11-03: selected a game, toggled gamescope switches, Copy put the line on the Wayland clipboard (`wl-paste`), Apply wrote the real `localconfig.vdf` with a backup, and the script restored it byte-identically. Needs Steam closed; slom's own config/backups go to a temp dir (`XDG_CONFIG_HOME`/`XDG_STATE_HOME`).

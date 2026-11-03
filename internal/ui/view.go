@@ -2,10 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
 	"github.com/secato/slom/internal/catalog"
+	"github.com/secato/slom/internal/parse"
 	"github.com/secato/slom/internal/store"
 )
 
@@ -286,37 +289,25 @@ func (a *App) extras(c *ui.Context) {
 		ui.Text(c, "Everything else").Bold().FontSize(14).TextColor(t.TextMuted).Margin(0, 0, 4, 0)
 		ui.Divider(c)
 		ui.Text(c, "Anything slom does not have a control for stays here, exactly as it was, and is kept in the command. Add your own too.").TextColor(t.TextMuted).FontSize(12)
-		chips := func(label, tip string, tokens *[]string) {
-			cp := append([]string(nil), *tokens...)
-			ui.Row(c.Key("x-" + label)).Gap(12).Children(func() {
-				ui.Text(c, label).Width(190).Tooltip(tip)
-				if ui.TokenField(c, &cp, nil).Label(label).Placeholder("Add…").Grow(1).Changed() {
-					*tokens = cp
-					a.commit()
-				}
-			})
-		}
-		chips("Before the game: variables", "Environment variables such as FOO=1, placed first in the command.", &a.sel.CustomEnv)
-		chips("Before the game: commands", "Other programs that wrap the game, such as taskset -c 0-3.", &a.sel.CustomWrap)
-		chips("After the game: arguments", "Arguments passed to the game itself, after %command%, such as -windowed or -novid.", &a.sel.CustomArgs)
+		a.chipEditor(c, "env", "Before the game: variables", "Environment variables such as FOO=1, placed first in the command.",
+			a.sel.CustomEnv, false, func(t []string) { a.sel.CustomEnv = t })
+		a.chipEditor(c, "wrap", "Before the game: commands", "Other programs that wrap the game, such as taskset -c 0-3.",
+			a.sel.CustomWrap, true, func(t []string) { a.sel.CustomWrap = t })
+		a.chipEditor(c, "args", "After the game: arguments", "Arguments passed to the game itself, after %command%, such as -windowed or -novid.",
+			a.sel.CustomArgs, true, func(t []string) { a.sel.CustomArgs = t })
 		for _, w := range a.cat.Options {
 			if w.Slot != catalog.SlotWrapper || len(a.sel.ExtraArgs[w.ID]) == 0 {
 				continue
 			}
-			host := w.ID
-			cp := append([]string(nil), a.sel.ExtraArgs[host]...)
-			label := "Extra " + w.Name + " settings"
-			ui.Row(c.Key("x-" + host)).Gap(12).Children(func() {
-				ui.Text(c, label).Width(190).Tooltip("Flags or items of " + w.Name + " that slom has no control for.")
-				if ui.TokenField(c, &cp, nil).Label(label).Grow(1).Changed() {
-					if len(cp) == 0 {
+			host, items := w.ID, w.ConfigEnv != ""
+			a.chipEditor(c, "extra-"+host, "Extra "+w.Name+" settings", "Flags or items of "+w.Name+" that slom has no control for.",
+				a.sel.ExtraArgs[host], !items, func(t []string) {
+					if len(t) == 0 {
 						delete(a.sel.ExtraArgs, host)
 					} else {
-						a.sel.ExtraArgs[host] = cp
+						a.sel.ExtraArgs[host] = t
 					}
-					a.commit()
-				}
-			})
+				})
 		}
 	})
 }
@@ -404,4 +395,54 @@ func (a *App) tabLabels(groups []string) []string {
 		}
 	}
 	return out
+}
+
+// chipEditor edits a list of verbatim tokens as chips: one chip per command or flag with its
+// value (group), each editable in place, plus a field that adds one on Enter. The chips are
+// kept in the app while the user types, so a chip never re-splits under the cursor; they are
+// rebuilt from the tokens when those change from elsewhere (another game, an import).
+func (a *App) chipEditor(c *ui.Context, id, label, tip string, tokens []string, group bool, set func([]string)) {
+	flatten := func(chips []string) []string {
+		if group || id == "env" {
+			return parse.Ungroup(chips)
+		}
+		var out []string // MangoHud items: one item per chip, kept as typed
+		for _, ch := range chips {
+			if ch = strings.TrimSpace(ch); ch != "" {
+				out = append(out, ch)
+			}
+		}
+		return out
+	}
+	key := a.cur.AppID + "/" + id
+	st := a.chips[key]
+	if st == nil || !slices.Equal(flatten(st), tokens) {
+		if group {
+			st = parse.Group(tokens)
+		} else {
+			st = append([]string(nil), tokens...)
+		}
+	}
+	ui.Row(c.Key("x-" + id)).Gap(12).Children(func() {
+		ui.Text(c, label).Width(190).Tooltip(tip)
+		ui.Column(c).Grow(1).Gap(4).Children(func() {
+			changed := false
+			for i := range st {
+				txt := st[i]
+				if ui.TextInput(c.Key(fmt.Sprintf("chip-%s-%d", id, i)), &txt).Font("monospace").Label(fmt.Sprintf("%s %d", label, i+1)).Changed() {
+					st[i], changed = txt, true
+				}
+			}
+			add := a.chipDraft[key]
+			if ui.TextInput(c.Key("add-"+id), &add).Placeholder("Add…  (press Enter)").Label("Add to "+label).Submitted() && strings.TrimSpace(add) != "" {
+				st, add, changed = append(st, add), "", true
+			}
+			a.chipDraft[key] = add
+			if changed {
+				set(flatten(st))
+				a.commit()
+			}
+		})
+	})
+	a.chips[key] = st
 }

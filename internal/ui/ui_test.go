@@ -3,6 +3,8 @@ package ui
 import (
 	"image/png"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/secato/slom/internal/catalog"
+	"github.com/secato/slom/internal/parse"
 	"github.com/secato/slom/internal/steam"
 	"github.com/secato/slom/internal/store"
 )
@@ -187,5 +190,87 @@ func TestScreenshot(t *testing.T) {
 	defer f.Close()
 	if err := png.Encode(f, tt.Image()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestChipsGroupAndNeverSplitOnCommas(t *testing.T) {
+	a := testApp(t)
+	a.steamLines["2"] = "FOO=bar taskset -c 0-3 %command% -a 'b c' -windowed"
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Native Thing")
+	if err := tt.Click("Everything else"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("Before the game: commands") {
+		t.Fatalf("extras not shown: %q", tt.Texts())
+	}
+	// the wrapper tokens are one chip, and so is each flag with its value
+	if got := parse.Group(a.sel.CustomWrap); len(got) != 1 || got[0] != "taskset -c 0-3" {
+		t.Fatalf("wrap chips %q", got)
+	}
+	if got := parse.Group(a.sel.CustomArgs); len(got) != 2 || got[0] != "-a 'b c'" || got[1] != "-windowed" {
+		t.Fatalf("args chips %q", got)
+	}
+	// adding an env chip with commas keeps it as one token
+	if err := tt.Click("Add to Before the game: variables"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("WINEDLLOVERRIDES=dxgi=n,b")
+	tt.Key(0, ui.KeyEnter)
+	want := []string{"FOO=bar", "WINEDLLOVERRIDES=dxgi=n,b"}
+	if !slices.Equal(a.sel.CustomEnv, want) {
+		t.Fatalf("env tokens %q, want %q", a.sel.CustomEnv, want)
+	}
+	if got := a.preview(); !strings.HasPrefix(got, "FOO=bar WINEDLLOVERRIDES=dxgi=n,b taskset -c 0-3 %command% -a 'b c' -windowed") {
+		t.Fatalf("preview %q", got)
+	}
+	// and it is saved
+	as, _ := a.store.Assignment("2")
+	if !slices.Equal(as.Custom.CustomEnv, want) {
+		t.Fatalf("not saved: %+v", as.Custom)
+	}
+}
+
+func TestSwitchingSteamAccount(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := func(opt string) string {
+		return `"UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "apps" { "1" { "LaunchOptions" "` + opt + `" } } } } } }`
+	}
+	write(filepath.Join(root, "steamapps/appmanifest_1.acf"), `"AppState" { "appid" "1" "name" "Shared Game" "StateFlags" "4" "installdir" "x" }`)
+	write(filepath.Join(root, "userdata/100/config/localconfig.vdf"), cfg("A=1 %command%"))
+	write(filepath.Join(root, "userdata/200/config/localconfig.vdf"), cfg("B=2 %command%"))
+	write(filepath.Join(root, "config/loginusers.vdf"),
+		`"users" { "76561197960265828" { "PersonaName" "Alice" "Timestamp" "20" } "76561197960265928" { "PersonaName" "Bob" "Timestamp" "10" } }`)
+
+	a := testApp(t)
+	a.install, a.hasInst = steam.Install{Root: root}, true
+	a.reloadUsers()
+	if len(a.users) != 2 || a.users[0].Name != "Alice" {
+		t.Fatalf("users %+v", a.users)
+	}
+	if a.steamLines["1"] != "A=1 %command%" {
+		t.Fatalf("alice lines %v", a.steamLines)
+	}
+	tt := ui.NewTester(a.View, 1180, 780)
+	if err := tt.Click("Alice"); err != nil { // the account select
+		t.Fatal(err)
+	}
+	if err := tt.Click("Bob"); err != nil {
+		t.Fatal(err)
+	}
+	if a.userIdx != 1 || a.steamLines["1"] != "B=2 %command%" {
+		t.Fatalf("after switching: idx %d lines %v", a.userIdx, a.steamLines)
+	}
+	if a.cur != nil {
+		t.Error("the open game should be closed when the account changes")
 	}
 }
