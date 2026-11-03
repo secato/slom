@@ -4,7 +4,7 @@ Milestones (one commit each):
 
 - [x] M0 Scaffold, spec and agent docs
 - [x] M1 `steam` package: discovery, games, VDF read, localconfig writer, process detection
-- [ ] M2 `catalog`, `render`, `parse` with round-trip tests
+- [x] M2 `catalog`, `render`, `parse` with round-trip tests
 - [ ] M3 `store`: presets, assignments (backups already live in `steam.WriteLaunchOptions`)
 - [ ] M4 `ui`: vertical slice, then full screens
 - [ ] M5 Test-button spike (`steam://run/<id>//<options>/`)
@@ -18,3 +18,8 @@ Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, lis
 - `HasProtonPrefix` (a `compatdata/<appid>` dir exists) is the only native-vs-Proton signal; false means native or never run.
 - Real launch lines on the owner's machine use `PROTON_ENABLE_NGX_UPDATER=1 DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION=render_preset_m` and `gamescope --force-grab-cursor -W 2560 -H 1440 -r 180 -- %command%`; the catalog must parse these (use as test cases).
 - `SLOM_REAL_STEAM=1 go test ./internal/steam -run Real -v` reads the real install (read-only).
+
+## Notes from M2
+- Selection model: `Values` (option id -> value, Bool = "1") plus verbatim `CustomEnv` / `CustomWrap` / `CustomArgs` and `ExtraArgs[host]` for unknown wrapper flags/config items. Render order: catalog env, config env (`MANGOHUD_CONFIG`), CustomEnv, wrappers by `Order` (gamemoderun, gamescope ... `--`, mangohud), CustomWrap, `%command%`, CustomArgs.
+- Parse normalizes long gamescope flags to short ones and reorders into canonical order; it never drops tokens (tested). `PROTON_LOG=0`-style values that are not the "on" value stay as custom env. `MANGOHUD_CONFIG` without the `mangohud` wrapper stays a custom env token.
+- See `docs/CATALOG.md` for variable verification and which options are Proton-GE only.
