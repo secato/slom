@@ -1,0 +1,32 @@
+"UserLocalConfigStore"
+{
+	"Software"
+	{
+		"Valve"
+		{
+			"Steam"
+			{
+				"apps"
+				{
+					"570"
+					{
+						"LastPlayed"		"1376676874"
+						"LaunchOptions"		"gamescope -W 2560 -H 1440 -- %command%"
+						"Playtime"		"397"
+					}
+					"1245620"
+					{
+						"LastPlayed"		"1"
+					}
+					"7"
+					{
+					}
+				}
+			}
+		}
+	}
+	"friends"
+	{
+		"apps"		"decoy"
+	}
+}
