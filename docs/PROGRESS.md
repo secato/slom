@@ -7,7 +7,7 @@ Milestones (one commit each):
 - [x] M2 `catalog`, `render`, `parse` with round-trip tests
 - [x] M3 `store`: presets, assignments (backups already live in `steam.WriteLaunchOptions`)
 - [x] M4 `ui`: game list, preset bar, tabbed option editor, extras chips, preview, apply flows
-- [ ] M5 Test-button spike (`steam://run/<id>//<options>/`)
+- [x] M5 Test-button spike: resolved as "dropped for v1" (see `docs/SPIKE-TEST-BUTTON.md`; `scripts/spike-test-launch.sh` re-runs it)
 - [ ] M6 README with screenshot, final docs
 
 Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, list).
