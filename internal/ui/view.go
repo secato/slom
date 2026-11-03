@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/secato/slom/internal/catalog"
+	"github.com/secato/slom/internal/store"
 )
 
 // View builds the whole window.
@@ -141,9 +142,9 @@ func (a *App) steamBanner(c *ui.Context) {
 func (a *App) presetBar(c *ui.Context) {
 	t := c.Theme()
 	presets := a.store.Presets()
-	labels := []string{"No preset"}
-	byLabel := map[string]string{"No preset": ""}
-	cur := "No preset"
+	labels := []string{store.NoPresetLabel}
+	byLabel := map[string]string{store.NoPresetLabel: ""}
+	cur := store.NoPresetLabel
 	for _, p := range presets {
 		labels = append(labels, p.Name)
 		byLabel[p.Name] = p.ID
@@ -153,9 +154,8 @@ func (a *App) presetBar(c *ui.Context) {
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		ui.Text(c, "Preset").Tooltip("A preset is a reusable set of options. A game linked to a preset follows it; the changes you make to this game are kept as its own overrides (marked •).")
-		ui.Select(c.Key("preset"), &cur, labels).Label("Preset").Width(220)
-		if id := byLabel[cur]; id != a.presetID {
-			a.choosePreset(id)
+		if ui.Select(c.Key("preset"), &cur, labels).Label("Preset").Width(220).Changed() {
+			a.choosePreset(byLabel[cur])
 		}
 		ui.Button(c, "Save as preset…").Tooltip("Save the current settings as a new preset and link this game to it.").OnClick(func() {
 			a.presetName, a.savingPreset = "", true

@@ -28,12 +28,22 @@ func TestPresetCRUDAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, _ := s.SavePreset(Preset{Name: "Native 1440p 165Hz!", Selection: mk(c, "gs.out_w", "2560")})
-	b, _ := s.SavePreset(Preset{Name: "Native 1440p 165Hz!", Selection: catalog.Selection{}})
+	b, _ := s.SavePreset(Preset{Name: "Native 1440p 165Hz?", Selection: catalog.Selection{}}) // same slug, different name
 	if a.ID != "native-1440p-165hz" || b.ID != "native-1440p-165hz-2" {
 		t.Fatalf("ids %q %q", a.ID, b.ID)
 	}
 	if _, err := s.SavePreset(Preset{Name: "  "}); err == nil {
 		t.Error("empty name accepted")
+	}
+	if _, err := s.SavePreset(Preset{Name: "native 1440P 165hz!"}); err == nil {
+		t.Error("duplicate name (case-insensitive) accepted")
+	}
+	if _, err := s.SavePreset(Preset{Name: "no preset"}); err == nil {
+		t.Error("reserved name accepted")
+	}
+	// renaming a preset to its own name, or updating it, is fine
+	if _, err := s.SavePreset(Preset{ID: a.ID, Name: "Native 1440p 165Hz!", Selection: a.Selection}); err != nil {
+		t.Errorf("updating a preset failed: %v", err)
 	}
 	// custom pieces are stripped from presets
 	p, _ := s.SavePreset(Preset{Name: "x", Selection: catalog.Selection{CustomArgs: []string{"-a"}}})
@@ -46,7 +56,7 @@ func TestPresetCRUDAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s2.Presets()) != 3 {
+	if len(s2.Presets()) != 3 { // a, b and "x"
 		t.Fatalf("presets %v", s2.Presets())
 	}
 	if got, ok := s2.Assignment("570"); !ok || got.Overrides["gs.refresh"] != "144" {

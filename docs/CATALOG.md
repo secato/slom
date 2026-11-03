@@ -19,6 +19,9 @@ The catalog lives in `internal/catalog/data.go`. Every option has a label, a too
 ## Left out on purpose
 `PROTON_FSR4_UPGRADE`, `PROTON_NO_STEAMINPUT`, `PROTON_ENABLE_NVAPI`, `PROTON_DLSS_UPGRADE`: not found in Proton 11.0 or in any source checked. Add them only with a source.
 
+## DLSS indicator caveat
+`DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS` writes NGX registry keys into the game's Wine prefix permanently (dxvk-nvapi README). Removing the option does not hide the indicator: run once with the "Hide" value (`DLSSIndicator=0,DLSSGIndicator=0`). The option is therefore a Show/Hide select, not a switch.
+
 ## Rules the engine enforces
 - `Host`: a wrapper flag or config item needs its wrapper (gamescope, mangohud); `Set` switches the wrapper on and turning the wrapper off clears its options.
 - `Requires`: switched on automatically (`proton.hdr` -> `proton.wayland`, `dlss.sr_preset` -> `dlss.sr_override`).

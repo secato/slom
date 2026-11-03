@@ -61,6 +61,9 @@ func New(opts []Option) *Catalog {
 	c := &Catalog{Options: opts, byID: map[string]*Option{}}
 	for i := range c.Options {
 		o := &c.Options[i]
+		if o.Platform == "" {
+			o.Platform = "linux"
+		}
 		if _, dup := c.byID[o.ID]; dup {
 			panic("catalog: duplicate option id " + o.ID)
 		}

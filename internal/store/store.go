@@ -16,6 +16,9 @@ import (
 	"github.com/secato/slom/internal/catalog"
 )
 
+// NoPresetLabel is what the UI shows for a game without a preset, so no preset may use it.
+const NoPresetLabel = "No preset"
+
 // Preset is a named, reusable selection.
 type Preset struct {
 	ID        string            `json:"id"`
@@ -156,8 +159,16 @@ func (s *Store) SavePreset(p Preset) (Preset, error) {
 	if p.Name == "" {
 		return Preset{}, errors.New("a preset needs a name")
 	}
+	if strings.EqualFold(p.Name, NoPresetLabel) {
+		return Preset{}, fmt.Errorf("%q is reserved; pick another name", NoPresetLabel)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for _, q := range s.presets {
+		if q.ID != p.ID && strings.EqualFold(q.Name, p.Name) {
+			return Preset{}, fmt.Errorf("a preset named %q already exists", q.Name)
+		}
+	}
 	p.Selection = p.Selection.Clone()
 	// A preset is a set of options; verbatim pieces of one game's launch line do not belong in it.
 	p.Selection.CustomEnv, p.Selection.CustomWrap, p.Selection.CustomArgs, p.Selection.ExtraArgs = nil, nil, nil, nil

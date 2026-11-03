@@ -44,3 +44,14 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 - Proton version selection (`CompatToolMapping` in `config.vdf`) is out of scope for v1.
 - The UI has only been exercised through MyGo's `Tester` and an 8 s real launch smoke test; a human pass on a real desktop (Apply against a real Steam, Flatpak Steam, multiple accounts) is still due.
 - Windows support: the catalog has no platform field in use yet (the spec reserved one); `steam/detach_linux.go` is Linux-only.
+
+## Follow-up fixes after review
+- Preset names are unique (case-insensitive) and "No preset" is reserved (`store.SavePreset`); the preset select only relinks on `Changed()` (it used to relink games every frame when names collided).
+- DLSS indicator is a Show/Hide select (see CATALOG.md).
+- `Option.Platform` exists and is `"linux"` for every option (asserted in tests).
+- Spike script now warns that the game may really start and asks for confirmation.
+
+## Known limitations (not fixed)
+- `TokenField` splits on commas, so a custom chip like `WINEDLLOVERRIDES=dxgi=n,b` breaks into two chips. Use "Edit as text…" for such values.
+- Chips are one per token; the spec wanted a chip per unrecognized token *or `-- wrapper` group* (`taskset -c 0-3` shows as three chips).
+- Never exercised against a running Steam: Apply on the real file, "Close Steam, apply, reopen" (`steam -shutdown` + restart), Flatpak Steam, multiple accounts.

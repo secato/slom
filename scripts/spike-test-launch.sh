@@ -2,12 +2,15 @@
 # Spike for the "Test" button: does Steam honor wrappers and env vars passed in a
 # steam://run/<appid>//<options>/ URL?
 #
-# It starts nothing but a tiny wrapper that records what Steam gave it and exits WITHOUT
-# running the game, so no game really starts. Steam itself must already be running (open
-# it first). Usage: scripts/spike-test-launch.sh <appid>
+# WARNING: this asks Steam to launch a game. The wrapper records what Steam gave it and exits
+# WITHOUT running the game, but that only happens if Steam honors the wrapper. If Steam instead
+# treats the URL options as plain game arguments, THE REAL GAME STARTS (pick an offline game,
+# never one with anticheat). Steam may also show a confirmation dialog for custom-argument
+# launches; then the result is inconclusive (answer the dialog and rerun). Steam itself must
+# already be running. Usage: scripts/spike-test-launch.sh <appid>
 set -euo pipefail
 
-appid="${1:?usage: $0 <appid>   (the app id of any installed game; the game will not really start)}"
+appid="${1:?usage: $0 <appid>   (an installed, offline game with no anticheat; it may really start)}"
 dir="$(mktemp -d)"
 marker="$dir/marker"
 wrapper="$dir/wrap.sh"
@@ -23,6 +26,9 @@ cat >"$wrapper" <<WRAP
 exit 0
 WRAP
 chmod +x "$wrapper"
+
+read -r -p "This may really start app $appid. Continue? [y/N] " ok
+[[ "$ok" == [yY]* ]] || { echo "Aborted."; exit 3; }
 
 if ! pgrep -x steam >/dev/null; then
   echo "Steam is not running. Start it, then run this again." >&2
@@ -47,5 +53,5 @@ for _ in $(seq 1 40); do
   fi
   sleep 1
 done
-echo "RESULT: does not work. After 40 s the wrapper never ran, so Steam did not treat the URL options as launch options with %command%."
+echo "RESULT: no wrapper ran within 40 s. Either Steam did not treat the URL options as launch options with %command% (the game may have started with them as plain arguments: close it), or a confirmation dialog is waiting: answer it and rerun before concluding."
 exit 1

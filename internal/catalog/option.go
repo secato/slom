@@ -47,6 +47,9 @@ type Option struct {
 	Help    string // tooltip text: what it does and when to use it
 	Support string // which Proton builds or hardware it works with; shown in the tooltip
 
+	// Platform is the OS the option applies to; New fills in "linux" when empty.
+	Platform string
+
 	Kind Kind
 	Slot Slot
 	Name string // env variable, wrapper program, flag or config key, as rendered

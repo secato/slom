@@ -37,7 +37,7 @@ func TestRender(t *testing.T) {
 		{"custom pieces keep their place",
 			catalog.Selection{CustomEnv: []string{"FOO=bar"}, CustomWrap: []string{"taskset", "-c", "0-3"}, CustomArgs: []string{"-windowed", "'a b'"}},
 			all, "FOO=bar taskset -c 0-3 %command% -windowed 'a b'"},
-		{"indicator value is not mangled", sel(c, "dlss.indicator", "1"),
+		{"indicator value is not mangled", sel(c, "dlss.indicator", "DLSSIndicator=1024,DLSSGIndicator=2"),
 			all, "DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS=DLSSIndicator=1024,DLSSGIndicator=2 %command%"},
 	}
 	for _, tc := range tests {

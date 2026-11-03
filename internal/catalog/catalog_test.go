@@ -10,6 +10,9 @@ func TestDefaultCatalogIsWellFormed(t *testing.T) {
 	c := Default() // New panics on duplicate ids or dangling references
 	seen := map[string]bool{}
 	for _, o := range c.Options {
+		if o.Platform != "linux" {
+			t.Errorf("%s: platform %q, want linux for v1", o.ID, o.Platform)
+		}
 		if o.Label == "" || o.Help == "" || o.Group == "" {
 			t.Errorf("%s: label, help and group are required (tooltips are mandatory)", o.ID)
 		}

@@ -123,6 +123,28 @@ func TestPresetFlow(t *testing.T) {
 	}
 }
 
+func TestPresetBarDoesNotRelinkGames(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Dota 2")
+	a.saveAsPreset("Alpha")
+	if err := a.store.SetAssignment("570", store.Assignment{PresetID: "alpha", Overrides: map[string]string{"gs.refresh": "60"}}); err != nil {
+		t.Fatal(err)
+	}
+	a.selectGame(a.cur)
+	// a second preset can no longer share the name, so the select's label is unambiguous
+	if _, err := a.store.SavePreset(store.Preset{Name: "alpha"}); err == nil {
+		t.Fatal("duplicate preset name accepted")
+	}
+	for range 5 {
+		tt.Frame()
+	}
+	as, _ := a.store.Assignment("570")
+	if a.presetID != "alpha" || as.PresetID != "alpha" || as.Overrides["gs.refresh"] != "60" {
+		t.Fatalf("frames relinked the game: preset %q, assignment %+v", a.presetID, as)
+	}
+}
+
 func TestMissingToolDisablesOption(t *testing.T) {
 	a := testApp(t)
 	a.tools = catalog.Tools{"gamescope": true, "mangohud": true, "gamemoderun": false}
