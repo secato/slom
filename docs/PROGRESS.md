@@ -8,7 +8,7 @@ Milestones (one commit each):
 - [x] M3 `store`: presets, assignments (backups already live in `steam.WriteLaunchOptions`)
 - [x] M4 `ui`: game list, preset bar, tabbed option editor, extras chips, preview, apply flows
 - [x] M5 Test-button spike: resolved as "dropped for v1" (see `docs/SPIKE-TEST-BUTTON.md`; `scripts/spike-test-launch.sh` re-runs it)
-- [ ] M6 README with screenshot, final docs
+- [x] M6 README with screenshot, final docs
 
 Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, list).
 
@@ -37,3 +37,10 @@ Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, lis
 - Int options start from the system: `catalog.Initial` uses `Option.DefaultFrom` (`screen.width/height/refresh`) resolved by `detectDefaults`.
 - The binary was smoke-tested for 8 s against the real Steam install (read-only; nothing written).
 - Not done / ideas: Windows, Proton version selection, a visible "overridden" legend, keyboard shortcuts.
+
+## State at the end of the first pass
+All milestones are done and committed; `go build ./... && go vet ./... && go test ./...` pass. Known gaps / next ideas:
+- Test button: dropped (needs the empirical result of `scripts/spike-test-launch.sh`).
+- Proton version selection (`CompatToolMapping` in `config.vdf`) is out of scope for v1.
+- The UI has only been exercised through MyGo's `Tester` and an 8 s real launch smoke test; a human pass on a real desktop (Apply against a real Steam, Flatpak Steam, multiple accounts) is still due.
+- Windows support: the catalog has no platform field in use yet (the spec reserved one); `steam/detach_linux.go` is Linux-only.
