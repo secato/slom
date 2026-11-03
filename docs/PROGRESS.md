@@ -7,7 +7,7 @@ Milestones (one commit each):
 - [x] M2 `catalog`, `render`, `parse` with round-trip tests
 - [x] M3 `store`: presets, assignments (backups already live in `steam.WriteLaunchOptions`)
 - [x] M4 `ui`: game list, preset bar, tabbed option editor, extras chips, preview, apply flows
-- [x] M5 Test-button spike: resolved as "dropped for v1" (see `docs/SPIKE-TEST-BUTTON.md`; `scripts/spike-test-launch.sh` re-runs it)
+- [x] M5 Test-button spike: run for real; Steam shows a ShowGameArgs dialog and never applies %command%/wrappers, so Test is dropped (`docs/SPIKE-TEST-BUTTON.md`)
 - [x] M6 README with screenshot, final docs
 
 Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, list).
@@ -40,7 +40,7 @@ Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, lis
 
 ## State at the end of the first pass
 All milestones are done and committed; `go build ./... && go vet ./... && go test ./...` pass. Known gaps / next ideas:
-- Test button: dropped (needs the empirical result of `scripts/spike-test-launch.sh`).
+- Test button: dropped, confirmed empirically (see `docs/SPIKE-TEST-BUTTON.md`).
 - Proton version selection (`CompatToolMapping` in `config.vdf`) is out of scope for v1.
 - The UI has only been exercised through MyGo's `Tester` and an 8 s real launch smoke test; a human pass on a real desktop (Apply against a real Steam, Flatpak Steam, multiple accounts) is still due.
 - Windows support: the catalog has no platform field in use yet (the spec reserved one); `steam/detach_linux.go` is Linux-only.
@@ -54,4 +54,9 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 ## Known limitations (not fixed)
 - `TokenField` splits on commas, so a custom chip like `WINEDLLOVERRIDES=dxgi=n,b` breaks into two chips. Use "Edit as text…" for such values.
 - Chips are one per token; the spec wanted a chip per unrecognized token *or `-- wrapper` group* (`taskset -c 0-3` shows as three chips).
-- Never exercised against a running Steam: Apply on the real file, "Close Steam, apply, reopen" (`steam -shutdown` + restart), Flatpak Steam, multiple accounts.
+- Not exercised: Flatpak Steam, multiple accounts, and the UI buttons on a real desktop (the underlying steps below were).
+
+## Verified on the real machine (2026-11-03)
+- `SLOM_REAL_APPLY=<appid> go test ./internal/steam -run RealApply`: wrote a launch option to the real `localconfig.vdf` with Steam closed, read it back, restored it; the file was byte-identical afterwards.
+- `SLOM_REAL_CLOSE=<appid> go test ./internal/steam -run RealCloseApplyReopen`: refused to write while Steam ran (`ErrSteamRunning`), `steam -shutdown` and wait, write + restore, restart Steam, shut it down again. Afterwards every `LaunchOptions` line matched the original (only Steam's own tickets and change numbers differed).
+- Both tests are opt-in (they touch the real install) and skipped by default.

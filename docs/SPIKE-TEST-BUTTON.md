@@ -1,28 +1,31 @@
 # Spike: a "Test" button that launches without saving
 
-**Decision for v1: not implemented.** The spec said to try `steam://run/<id>//<options>/`
-and drop Test if it does not carry wrappers and env vars.
+**Result: not possible. Test is dropped for v1.** Verified by running the experiment on
+2026-11-03 against a real Steam client (Proton 11 game, Steam logged in).
 
-## Evidence
-- Documentation and community sources describe the URL's `//<args>` part as launch
-  parameters passed to the application, i.e. game arguments. None says Steam substitutes
-  `%command%` or runs wrappers (gamescope, mangohud) or env vars from the URL; Steam applies
-  those only from the saved Launch Options.
-- `steam -applaunch <id> <args>` likewise passes arguments to the game.
-- Launching outside Steam (running Proton ourselves) was ruled out in the spec: it would not
-  match what Steam really does, so a "test" could mislead.
+## What was run
+`scripts/spike-test-launch.sh 3672400` asked Steam to open
+`steam://run/3672400//SLOM_SPIKE=1%20<wrapper>%20%command%/`, where the wrapper only
+records what it received and exits. No wrapper ran and no game started. Steam's own
+`logs/console-linux.txt` shows why:
 
-## Not verified empirically
-The decision above rests on documentation, **not on running the experiment**, even though
-the owner asked for a real spike. Running it launches a game through the owner's Steam, so
-it was not done unattended. `scripts/spike-test-launch.sh <appid>` runs it. Its wrapper
-records what Steam passed and does not start the game, but only if Steam honors the wrapper:
-if Steam treats the URL options as plain game arguments, **the real game starts**, so use an
-offline game without anticheat. Steam may also ask for confirmation, which makes the result
-inconclusive. Run it with Steam open:
+```
+ExecuteSteamURL: "steam://run/3672400//SLOM_SPIKE=1%20/tmp/.../wrap.sh%20%command%/"
+GameAction [AppID 3672400, ActionID 1] : LaunchApp changed task to ShowGameArgs with ""
+GameAction [AppID 3672400, ActionID 1] : LaunchApp waiting for user response to ShowGameArgs "SLOM_SPIKE=1 "
+```
 
-- If it prints `RESULT: works`, Test can be built: in `internal/ui`, a "Test" button next to
-  Apply that calls `install.Start("steam://run/<id>//<url-encoded options>/")` (Steam must
-  be running, the opposite of Apply), with a note that the launch is temporary and Apply
-  makes it permanent.
-- If it reports no wrapper ran (and no confirmation dialog was pending), keep Test dropped; the UI already has no Test button.
+## Findings
+1. Steam treats the URL's `//<options>` as **game arguments** (`ShowGameArgs`), not as Launch
+   Options: no `%command%` substitution, so wrappers (gamescope, mangohud) cannot be used.
+2. Steam asks the user to **confirm** the custom arguments in a dialog before launching, so
+   even plain env-style arguments would need a click in Steam on every Test.
+3. The options string ends at the first `/`, so anything containing a path (a wrapper
+   script) is truncated.
+
+Launching outside Steam (running Proton ourselves) stays ruled out by the spec: it would not
+match what Steam really does and could mislead.
+
+The script stays in `scripts/` for re-checking on future Steam versions. It asks for
+confirmation because, if Steam ever treated the URL options as plain arguments without a
+dialog, the real game would start; use an offline game without anticheat.
