@@ -25,7 +25,7 @@ func (a *App) View(c *ui.Context) {
 	ui.Column(c).Fill().Children(func() {
 		if a.loadErr != "" && len(a.games) == 0 {
 			ui.Column(c).Fill().Center().Gap(8).Children(func() {
-				ui.Text(c, "slom can't find your Steam games").Bold().FontSize(18)
+				ui.Text(c, "Slom can't find your Steam games").Bold().FontSize(18)
 				ui.Text(c, a.loadErr).TextColor(t.TextMuted)
 			})
 			return
@@ -146,7 +146,7 @@ func (a *App) sidebar(c *ui.Context) {
 			ui.Column(c).Gap(4).Children(func() {
 				if len(pend) > 0 {
 					a.section(c, fmt.Sprintf("PENDING APPLY · %d", len(pend)), pal.amber,
-						"Configured in slom, but different from what Steam has. Select one and apply it.")
+						"Configured in Slom, but different from what Steam has. Select one and apply it.")
 					for _, g := range pend {
 						a.gameRow(c, g, true)
 					}
@@ -521,7 +521,7 @@ func (a *App) extras(c *ui.Context) {
 				continue
 			}
 			host, items := w.ID, w.ConfigEnv != ""
-			a.chipEditor(c, "extra-"+host, "Extra "+w.Name+" settings", "Flags or items of "+w.Name+" that slom has no control for.",
+			a.chipEditor(c, "extra-"+host, "Extra "+w.Name+" settings", "Flags or items of "+w.Name+" that Slom has no control for.",
 				a.sel.ExtraArgs[host], !items, func(t []string) {
 					if len(t) == 0 {
 						delete(a.sel.ExtraArgs, host)
@@ -552,7 +552,7 @@ func (a *App) dock(c *ui.Context) {
 		})
 		ui.Scroll(c.Key("dock-scroll")).MaxHeight(280).Children(func() {
 			ui.Column(c).Gap(10).Padding(0, 8, 0, 0).Children(func() {
-				dockRow(c, "PREVIEW", "The line slom will write into the game's Launch Options in Steam.", func() {
+				dockRow(c, "PREVIEW", "The line Slom will write into the game's Launch Options in Steam.", func() {
 					a.commandBox(c, "preview", a.preview(), "Launch options preview: ")
 				})
 				dockRow(c, "DIFFERENCE", "What applying changes compared with the launch options Steam has now. Green is added, red is removed. A piece that only moved is not a change. Apply with the bolt button in the list on the left.", func() {
@@ -575,7 +575,7 @@ func (a *App) dock(c *ui.Context) {
 			if ghost(c, "Copy", "Copy the whole line, to paste into the game's Launch Options in Steam.", false) {
 				a.copyLine()
 			}
-			if ghost(c, "Edit as text…", "Type or paste a full launch line; slom reads what it recognizes.", false) {
+			if ghost(c, "Edit as text…", "Type or paste a full launch line; Slom reads what it recognizes.", false) {
 				a.openRaw()
 			}
 			if ghost(c, "Discard changes", "Drop what is set here, and the preset link, and go back to what Steam has for this game.", !differs) {

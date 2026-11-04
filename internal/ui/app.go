@@ -93,7 +93,7 @@ func (a *App) loadSteam() {
 	}
 	installs := steam.FindInstalls(home)
 	if len(installs) == 0 {
-		a.loadErr = "Steam was not found. slom looks in ~/.local/share/Steam and the Flatpak location."
+		a.loadErr = "Steam was not found. Slom looks in ~/.local/share/Steam and the Flatpak location."
 		return
 	}
 	a.install, a.hasInst = installs[0], true

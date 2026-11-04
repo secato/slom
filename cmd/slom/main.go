@@ -37,7 +37,7 @@ func main() {
 	app := slomui.New(st, backups)
 	mygo.App.WhenReady(func() {
 		win := mygo.NewWindow(mygo.WindowOptions{
-			Title:     "slom — Steam launch options",
+			Title:     "Slom — Steam launch options",
 			Width:     1180,
 			Height:    860,
 			MinWidth:  820,

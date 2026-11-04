@@ -46,7 +46,7 @@ if [ "$UNINSTALL" = 1 ]; then
 	exit 0
 fi
 
-[ "$(uname -s)" = "Linux" ] || die "slom runs on Linux only"
+[ "$(uname -s)" = "Linux" ] || die "Slom runs on Linux only"
 case "$(uname -m)" in
 x86_64 | amd64) ARCH=amd64 ;;
 aarch64 | arm64) ARCH=arm64 ;;
@@ -79,7 +79,7 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
-echo "Downloading slom ($VERSION, linux/$ARCH)..."
+echo "Downloading Slom ($VERSION, linux/$ARCH)..."
 fetch "$BASE/slom-linux-$ARCH" "$TMP/slom-linux-$ARCH" || die "could not download $BASE/slom-linux-$ARCH"
 fetch "$BASE/slom.svg" "$TMP/slom.svg" || die "could not download $BASE/slom.svg"
 fetch "$BASE/checksums.txt" "$TMP/checksums.txt" || die "could not download $BASE/checksums.txt"
@@ -96,7 +96,7 @@ case "$BIN" in *" "*) EXEC="\"$BIN\"" ;; *) EXEC="$BIN" ;; esac
 cat >"$DESKTOP" <<DESKTOP_ENTRY
 [Desktop Entry]
 Type=Application
-Name=slom
+Name=Slom
 GenericName=Steam launch options
 Comment=Set Steam launch options with labeled controls: Proton, DLSS, gamescope, MangoHud
 Exec=$EXEC
@@ -113,5 +113,5 @@ echo "Installed: $BIN"
 echo "Desktop entry: $DESKTOP"
 case ":$PATH:" in
 *":$BIN_DIR:"*) ;;
-*) echo "Note: $BIN_DIR is not in your PATH; start slom from the application menu, or add it." ;;
+*) echo "Note: $BIN_DIR is not in your PATH; start Slom from the application menu, or add it." ;;
 esac
