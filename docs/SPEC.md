@@ -11,7 +11,7 @@ from labeled controls, with a tooltip per option and a live preview of the whole
 - **Apply** edits `localconfig.vdf` directly, only while Steam is closed.
 - Only the `LaunchOptions` value of one app is rewritten (insert the key if missing); every other byte is preserved.
 - Backup before every write (`~/.local/state/slom/backups/`, keep last 10), re-parse after writing, restore the backup if the check fails.
-- Steam running: there is no banner. The sidebar shows "Steam is running / Changes wait for Apply", and the main button in the command dock becomes **Force apply**, with the line "Steam is running. Force apply will try to close it, apply, and reopen it." It still asks for confirmation (the dialog says Steam will be closed, the options saved, Steam opened again, and that games are closed too), then runs `steam -shutdown`, waits, writes, relaunches.
+- Steam running: there is no banner. The sidebar shows "Steam is running / Changes wait for Apply", and applying becomes **Force apply** It still asks for confirmation (the dialog says Steam will be closed, the options saved, Steam opened again, and that games are closed too), then runs `steam -shutdown`, waits, writes, relaunches.
 - **Copy** puts the full command line on the clipboard.
 - **Test** (only if the spike works): launch the game with the current options without saving; the UI says it is temporary and Apply makes it permanent. Spike: does `steam://run/<id>//<options>/` honor wrappers/env vars? If not, drop Test entirely (do not launch outside Steam).
 
@@ -47,3 +47,7 @@ Table-driven render/parse tests with a round-trip check (render -> parse -> rend
 - **Discard changes** = forget slom's configuration for the game (and its preset link) and show what Steam has. There is no separate re-import.
 - Every tab starts with a short description of the group; hosts (gamescope, MangoHud) have their master switch there.
 - Resolution is chosen with pills (output and game size together), refresh rate and limits with sliders; the option IDs and the rendered flags are unchanged.
+
+## Applying lives in the sidebar
+- The dock has no apply button. Each game under **PENDING APPLY** has a bolt button (tooltip says what it does), and when two or more games are pending a full-width **Apply all · N** sits under them. With Steam running the same buttons read **Force apply** / **Force apply all · N**, are amber, and ask for confirmation (the dialog names the number of games). One write and one backup per batch (`steam.WriteManyLaunchOptions`).
+- The dock keeps Copy, Edit as text, **Discard changes** and **Remove all options**. Removing all options empties the game's selection (including custom pieces and the preset link) as a normal pending change; applying it deletes the `LaunchOptions` line, Discard undoes it.

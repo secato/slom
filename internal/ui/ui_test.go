@@ -282,31 +282,120 @@ func TestSwitchingSteamAccount(t *testing.T) {
 	}
 }
 
-func TestForceApplyReplacesApplyWhileSteamRuns(t *testing.T) {
+// twoPendingGames gives Dota 2 and ELDEN RING a change each, over a real localconfig.vdf copy.
+func twoPendingGames(t *testing.T) (*App, *ui.Tester) {
+	t.Helper()
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
-	tt.Click("Dota 2")
-	if tt.HasText("Force apply") {
-		t.Fatal("Force apply is offered while Steam is closed")
-	}
-	if !tt.HasText("Apply") {
-		t.Fatalf("no Apply button: %q", tt.Texts())
-	}
-	a.steamRunning = true
-	a.setOption("gs.refresh", "60") // something to apply
-	tt.Frame()
-	if tt.HasText("Steam is running. Force apply will try to close it, apply and reopen it.") == false {
-		t.Fatalf("no explanation next to Force apply: %q", tt.Texts())
-	}
-	if err := tt.Click("Force apply"); err != nil {
+	src, err := os.ReadFile("../steam/testdata/localconfig.vdf")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !a.closingSteam {
-		t.Fatal("Force apply must ask for confirmation before closing Steam")
+	if err := os.WriteFile(a.users[0].ConfigPath, src, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.steamCheck = func() bool { return false }
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Dota 2")
+	a.setOption("gs.refresh", "60")
+	tt.Frame() // the list reorders
+	tt.Click("ELDEN RING")
+	a.setOption("gs.refresh", "90")
+	a.setOption("gamescope", "1")
+	tt.Frame()
+	return a, tt
+}
+
+func TestApplyLivesInTheSidebar(t *testing.T) {
+	a, tt := twoPendingGames(t)
+	for _, s := range tt.Texts() {
+		if s == "Apply" || s == "Force apply" {
+			t.Fatalf("the dock still has its own %s button", s)
+		}
+	}
+	if !tt.HasText("Apply all · 2") {
+		t.Fatalf("no apply-all under the pending games: %q", tt.Texts())
+	}
+	// one game
+	if err := tt.Click("Apply Dota 2"); err != nil {
+		t.Fatal(err)
+	}
+	if a.pending("570") || !a.pending("1245620") {
+		t.Fatalf("applying one game: pending dota=%v elden=%v", a.pending("570"), a.pending("1245620"))
+	}
+	if got := a.steamLines["570"]; got != "gamescope -r 60 -- %command%" && !strings.Contains(got, "-r 60") {
+		t.Errorf("Steam's line for Dota 2: %q", got)
+	}
+}
+
+func TestApplyAllWritesEveryPendingGameWithOneBackup(t *testing.T) {
+	a, tt := twoPendingGames(t)
+	if err := tt.Click("Apply all · 2"); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(a.pendingGames()); n != 0 {
+		t.Fatalf("%d games still pending", n)
+	}
+	baks, _ := filepath.Glob(filepath.Join(a.backups, "*.bak"))
+	if len(baks) != 1 {
+		t.Errorf("%d backups, want 1 for the whole batch", len(baks))
+	}
+	tt.Frame()
+	if tt.HasText("Apply all · 2") || tt.HasText("PENDING APPLY · 2") {
+		t.Error("the pending section did not empty")
+	}
+}
+
+func TestForceApplyAsksBeforeClosingSteam(t *testing.T) {
+	a, tt := twoPendingGames(t)
+	a.steamRunning = true
+	tt.Frame()
+	if !tt.HasText("Force apply all · 2") {
+		t.Fatalf("no force apply all: %q", tt.Texts())
+	}
+	if err := tt.Click("Force apply Dota 2"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.closingSteam || len(a.applyIDs) != 1 {
+		t.Fatalf("no confirmation for one game: %v %v", a.closingSteam, a.applyIDs)
 	}
 	tt.Frame()
 	if !tt.HasText("Steam will be closed, the launch options saved, and Steam opened again. Anything running in Steam, including games, will be closed.") {
 		t.Fatalf("confirmation does not say what happens: %q", tt.Texts())
+	}
+	a.closingSteam = false
+	tt.Frame()
+	tt.Click("Force apply all · 2")
+	if !a.closingSteam || len(a.applyIDs) != 2 {
+		t.Fatalf("no confirmation for all: %v %v", a.closingSteam, a.applyIDs)
+	}
+	tt.Frame()
+	if !tt.HasText("Steam will be closed, the launch options of 2 games saved, and Steam opened again. Anything running in Steam, including games, will be closed.") {
+		t.Fatalf("confirmation for two games: %q", tt.Texts())
+	}
+	if a.steamLines["570"] != "gamescope --force-grab-cursor -W 2560 -H 1440 -r 180 -- %command%" {
+		t.Error("a force apply that was not confirmed changed Steam's data")
+	}
+}
+
+func TestRemoveAllOptionsIsAnIntentionalChange(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Dota 2") // Steam has a gamescope line
+	if err := tt.Click("Remove all options"); err != nil {
+		t.Fatal(err)
+	}
+	if a.line() != "" || !a.pending("570") {
+		t.Fatalf("not an empty pending change: line %q pending %v", a.line(), a.pending("570"))
+	}
+	tt.Frame()
+	if !tt.HasText("Apply Dota 2") && !tt.HasText("Force apply Dota 2") {
+		t.Error("the game is not offered for apply")
+	}
+	if err := tt.Click("Discard changes"); err != nil {
+		t.Fatal(err)
+	}
+	if a.line() == "" || a.pending("570") {
+		t.Error("discard did not bring the options back")
 	}
 }
 
@@ -424,34 +513,5 @@ func TestNoScreenIsAssumed(t *testing.T) {
 	}
 	if got := a.cat.Initial(a.cat.Get("gs.out_w")) + "x" + a.cat.Initial(a.cat.Get("gs.out_h")); got != "1920x1080" {
 		t.Errorf("sizes start at %s, not a standard value", got)
-	}
-}
-
-func TestApplyIsDisabledWithoutChanges(t *testing.T) {
-	for _, running := range []bool{false, true} {
-		a := testApp(t)
-		a.steamRunning = running
-		tt := ui.NewTester(a.View, 1180, 780)
-		tt.Click("Dota 2") // read from Steam: nothing to apply
-		tt.Frame()
-		name := ternary(running, "Force apply", "Apply")
-		if !tt.HasText("Nothing to apply: this matches Steam.") {
-			t.Fatalf("running=%v: no explanation: %q", running, tt.Texts())
-		}
-		tt.Click(name)
-		if a.closingSteam {
-			t.Errorf("running=%v: %s opened its confirmation without changes", running, name)
-		}
-		// after a change it works again
-		a.setOption("gs.refresh", "60")
-		tt.Frame()
-		if tt.HasText("Nothing to apply: this matches Steam.") {
-			t.Errorf("running=%v: still nothing to apply after a change", running)
-		}
-		if running {
-			if err := tt.Click("Force apply"); err != nil || !a.closingSteam {
-				t.Errorf("Force apply does not work with changes: %v %v", err, a.closingSteam)
-			}
-		}
 	}
 }

@@ -159,6 +159,12 @@ type WriteOptions struct {
 // It refuses while Steam runs, backs the file up first, writes atomically, re-reads the
 // result to verify it, and restores the backup if verification fails.
 func WriteLaunchOptions(path, appID, value string, o WriteOptions) error {
+	return WriteManyLaunchOptions(path, map[string]string{appID: value}, o)
+}
+
+// WriteManyLaunchOptions does the same for several games at once, with one backup and one
+// write: the file is either all changed or, if anything fails, as it was.
+func WriteManyLaunchOptions(path string, values map[string]string, o WriteOptions) error {
 	running := o.SteamRunning
 	if running == nil {
 		running = Running
@@ -170,9 +176,16 @@ func WriteLaunchOptions(path, appID, value string, o WriteOptions) error {
 	if err != nil {
 		return err
 	}
-	out, err := SetLaunchOptions(src, appID, value)
-	if err != nil {
-		return err
+	ids := make([]string, 0, len(values))
+	for id := range values {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := src
+	for _, id := range ids {
+		if out, err = SetLaunchOptions(out, id, values[id]); err != nil {
+			return err
+		}
 	}
 	if string(out) == string(src) {
 		return nil
@@ -184,7 +197,7 @@ func WriteLaunchOptions(path, appID, value string, o WriteOptions) error {
 	if err := atomicWrite(path, out); err != nil {
 		return err
 	}
-	if verr := verifyLaunchOptions(path, appID, value); verr != nil {
+	if verr := verifyLaunchOptions(path, values); verr != nil {
 		if backup != "" {
 			if rerr := atomicWrite(path, src); rerr != nil {
 				return fmt.Errorf("verification failed (%v) and restore failed: %w", verr, rerr)
@@ -195,7 +208,7 @@ func WriteLaunchOptions(path, appID, value string, o WriteOptions) error {
 	return nil
 }
 
-func verifyLaunchOptions(path, appID, want string) error {
+func verifyLaunchOptions(path string, want map[string]string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -204,8 +217,10 @@ func verifyLaunchOptions(path, appID, want string) error {
 	if err != nil {
 		return err
 	}
-	if got[appID] != want {
-		return fmt.Errorf("read back %q, want %q", got[appID], want)
+	for id, w := range want {
+		if got[id] != w {
+			return fmt.Errorf("app %s: read back %q, want %q", id, got[id], w)
+		}
 	}
 	return nil
 }

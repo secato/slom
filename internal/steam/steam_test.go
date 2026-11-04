@@ -248,3 +248,38 @@ func TestRunningIn(t *testing.T) {
 		t.Fatal("steam not detected")
 	}
 }
+
+func TestWriteManyLaunchOptionsMakesOneBackupAndChangesOnlyThoseGames(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "localconfig.vdf")
+	src, err := os.ReadFile("testdata/localconfig.vdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(path, src, 0o644)
+	before, _ := LaunchOptions(src)
+	want := map[string]string{"1111": "FOO=1 %command%", "2222": "", "9999": "gamescope -- %command%"}
+	err = WriteManyLaunchOptions(path, want, WriteOptions{BackupDir: filepath.Join(dir, "bak"), Keep: 10, SteamRunning: func() bool { return false }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	got, _ := LaunchOptions(data)
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("app %s: %q, want %q", id, got[id], w)
+		}
+	}
+	for id, v := range before {
+		if _, touched := want[id]; !touched && got[id] != v {
+			t.Errorf("app %s changed although it was not asked for: %q", id, got[id])
+		}
+	}
+	baks, _ := filepath.Glob(filepath.Join(dir, "bak", "*.bak"))
+	if len(baks) != 1 {
+		t.Errorf("%d backups for one write, want 1", len(baks))
+	}
+	if err := WriteManyLaunchOptions(path, want, WriteOptions{SteamRunning: func() bool { return true }}); err != ErrSteamRunning {
+		t.Errorf("a running Steam must refuse the write, got %v", err)
+	}
+}

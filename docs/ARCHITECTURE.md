@@ -17,7 +17,7 @@ scripts/            spike-test-launch.sh (re-verifies the dropped Test button id
 2. Selecting a game loads its stored `store.Assignment` (`Effective` = preset + overrides + custom pieces) or, if none, `parse.Parse` of Steam's line.
 3. Controls are generated from `catalog.Default()`; every change goes through `catalog.Set` (validation, `Host`/`Requires` auto-on, `Conflicts`, cascade off) and autosaves the assignment via `store.Derive`.
 4. `render.Render(selection, tools)` produces the live preview.
-5. Apply: `steam.WriteLaunchOptions` (refuse if Steam runs -> backup -> atomic write -> read-back verify -> restore on failure). "Force apply" (Steam running) wraps it with `Install.Shutdown` / `Install.Start`.
+5. Apply: `steam.WriteLaunchOptions` (refuse if Steam runs -> backup -> atomic write -> read-back verify -> restore on failure). "Force apply" (Steam running; per game or for all pending games) wraps it with `Install.Shutdown` / `Install.Start`.
 
 ## Invariants (tested)
 - `render(parse(x))` is stable; parse never drops a token; unknown pieces keep their position (custom env / wrap / args, `ExtraArgs` for wrapper flags and `MANGOHUD_CONFIG` items).

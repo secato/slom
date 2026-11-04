@@ -61,7 +61,9 @@ type App struct {
 	presetName     string
 	deletingPreset bool
 	closingSteam   bool
-	busy           string // what a background task is doing, "" if idle
+	applyIDs       []string    // the games the open "Force apply?" dialog is about
+	steamCheck     func() bool // asked just before writing; nil asks the system (tests set it)
+	busy           string      // what a background task is doing, "" if idle
 	loadErr        string
 }
 
@@ -369,14 +371,54 @@ func (a *App) copyLine() {
 	a.toast("Launch options copied")
 }
 
-// apply writes the editor's line into Steam's configuration (Steam must be closed).
-func (a *App) apply() {
-	if a.cur == nil {
+// pendingGames are the games whose configured line differs from Steam's, in list order.
+func (a *App) pendingGames() []*steam.Game {
+	var out []*steam.Game
+	for i := range a.games {
+		if a.pending(a.games[i].AppID) {
+			out = append(out, &a.games[i])
+		}
+	}
+	return out
+}
+
+// assignedLine is the line slom has configured for a game: what applying it writes.
+func (a *App) assignedLine(appID string) (string, bool) {
+	as, ok := a.store.Assignment(appID)
+	if !ok {
+		return "", false
+	}
+	return a.lineOf(store.Effective(a.cat, a.preset(as.PresetID), as)), true
+}
+
+// linesOf collects what applying the games writes, by app id.
+func (a *App) linesOf(ids []string) map[string]string {
+	out := map[string]string{}
+	for _, id := range ids {
+		if line, ok := a.assignedLine(id); ok {
+			out[id] = line
+		}
+	}
+	return out
+}
+
+// askApply applies the games now if Steam is closed; if it runs, asks first, because applying
+// then means closing Steam.
+func (a *App) askApply(ids []string) {
+	if a.busy != "" || len(ids) == 0 {
 		return
 	}
-	line := a.line()
-	err := steam.WriteLaunchOptions(a.user().ConfigPath, a.cur.AppID, line, steam.WriteOptions{
-		BackupDir: a.backups, Keep: backupsKept,
+	if a.steamRunning {
+		a.applyIDs, a.closingSteam = ids, true
+		return
+	}
+	a.applyGames(ids)
+}
+
+// applyGames writes the games' lines into Steam's configuration (Steam must be closed).
+func (a *App) applyGames(ids []string) {
+	err := steam.WriteManyLaunchOptions(a.user().ConfigPath, a.linesOf(ids), steam.WriteOptions{
+		BackupDir: a.backups, Keep: backupsKept, SteamRunning: a.steamCheck,
 	})
 	if err != nil {
 		if err == steam.ErrSteamRunning {
@@ -386,23 +428,28 @@ func (a *App) apply() {
 		}
 		return
 	}
-	a.commit()
 	a.readSteamLines()
-	a.toast("Applied. Start Steam to use the new launch options.")
+	a.toast(appliedMessage(len(ids)))
 }
 
-// closeSteamAndApply quits Steam, writes the line, and starts Steam again.
-func (a *App) closeSteamAndApply() {
-	if a.cur == nil || a.busy != "" {
+func appliedMessage(n int) string {
+	if n == 1 {
+		return "Applied. Start Steam to use the new launch options."
+	}
+	return fmt.Sprintf("Applied to %d games. Start Steam to use the new launch options.", n)
+}
+
+// forceApply quits Steam, writes the games' lines, and starts Steam again.
+func (a *App) forceApply(ids []string) {
+	if a.busy != "" || len(ids) == 0 {
 		return
 	}
-	appID, line, path := a.cur.AppID, a.line(), a.user().ConfigPath
-	a.commit()
+	lines, path := a.linesOf(ids), a.user().ConfigPath
 	a.busy = "Closing Steam…"
 	go func() {
 		err := a.install.Shutdown(45 * time.Second)
 		if err == nil {
-			err = steam.WriteLaunchOptions(path, appID, line, steam.WriteOptions{BackupDir: a.backups, Keep: backupsKept})
+			err = steam.WriteManyLaunchOptions(path, lines, steam.WriteOptions{BackupDir: a.backups, Keep: backupsKept})
 		}
 		startErr := a.install.Start() // reopen Steam whatever happened
 		a.win.Update(func() {
@@ -414,10 +461,22 @@ func (a *App) closeSteamAndApply() {
 			case startErr != nil:
 				a.toast("Applied, but Steam did not restart: " + startErr.Error())
 			default:
-				a.toast("Applied. Steam is starting again.")
+				a.toast(strings.Replace(appliedMessage(len(ids)), "Start Steam to use the new launch options.", "Steam is starting again.", 1))
 			}
 		})
 	}()
+}
+
+// removeAll empties the game's launch options. It is a change like any other: it waits to be
+// applied, and Discard changes undoes it.
+func (a *App) removeAll() {
+	if a.cur == nil {
+		return
+	}
+	a.sel = parse.Parse(a.cat, "")
+	a.presetID = ""
+	a.notes = []string{"All options removed. Apply to save that to Steam, or Discard changes to undo."}
+	a.commit()
 }
 
 // ---- helpers for the view ----

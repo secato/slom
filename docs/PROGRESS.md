@@ -71,7 +71,11 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 
 ## No screen detection, and Apply needs a change (2026-11-04)
 - Removed `internal/ui/system.go`, `catalog.Defaults`, `Option.DefaultFrom` and the "Your screen is …" line. Reading the screen was wrong on a multi-monitor machine (it reported the secondary 1080p display instead of the 1440p main one), and compositors and scaling differ too much to trust. Starting values are fixed usual ones in `catalog/data.go` (`gsStart`, 60 for MangoHud's limit); the user picks or types the real value. Do not add detection back without a way to choose the monitor.
-- **Apply** and **Force apply** are disabled when the editor's line matches Steam's (after normalizing), with "Nothing to apply: this matches Steam." next to them.
+- A game with no change to apply has no apply button (it is not under PENDING APPLY); the dock says "Nothing to apply: this matches Steam."
+
+## Apply from the sidebar, Remove all options (2026-11-04)
+- Per-game bolt buttons and **Apply all · N** / **Force apply all · N** in the sidebar replace the dock's Apply/Force apply (`App.askApply`, `applyGames`, `forceApply`, `pendingGames`). `steam.WriteManyLaunchOptions` writes several games with one backup and one verified write (tested).
+- **Remove all options** in the dock (`App.removeAll`). `scripts/e2e.py` now presses "Apply <game>" in the sidebar; that step was not rerun (Steam was running).
 
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.

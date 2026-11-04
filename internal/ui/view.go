@@ -77,22 +77,21 @@ func ghost(c *ui.Context, label, tip string, disabled bool) bool {
 	return b.Clicked()
 }
 
-// bigButton is the one loud action of the window: green to Apply, amber to Force apply.
-func bigButton(c *ui.Context, label string, bg, glow ui.Color, withBolt, disabled bool, tip string) bool {
-	b := ui.ButtonBase(c.Key("main-"+label)).Height(44).Padding(0, 24).Radius(10).Gap(10).Tooltip(tip).Disabled(disabled)
-	if disabled {
-		b.Background(pal.line)
-	} else {
-		b.Background(bg).Shadow(0, 0, 22, 0, glow)
+// applyColors are the colors of the apply buttons: green when applying is direct, amber when
+// Steam runs and applying means closing and reopening it.
+func (a *App) applyColors() (bg, glow ui.Color) {
+	if a.steamRunning {
+		return pal.amber, pal.amberGlow
 	}
-	b.Children(func() {
-		fg := ternary(disabled, pal.faint, pal.onAccent)
-		if withBolt {
-			icon(c, icons.bolt, 16, fg)
-		}
-		display(ui.Text(c, label), 17).LetterSpacing(1.5).TextColor(fg)
-	})
-	return b.Clicked()
+	return pal.accent, pal.accentGlow
+}
+
+// applyTip says what pressing an apply button does right now.
+func (a *App) applyTip(what string) string {
+	if a.steamRunning {
+		return "Force apply " + what + ": close Steam, write the launch options, open Steam again. Anything open in Steam, including games, will be closed. You are asked to confirm first."
+	}
+	return "Apply " + what + " to Steam. A backup of its configuration is made first."
 }
 
 func ternary[T any](ok bool, a, b T) T {
@@ -149,7 +148,10 @@ func (a *App) sidebar(c *ui.Context) {
 					a.section(c, fmt.Sprintf("PENDING APPLY · %d", len(pend)), pal.amber,
 						"Configured in slom, but different from what Steam has. Select one and apply it.")
 					for _, g := range pend {
-						a.gameRow(c, g)
+						a.gameRow(c, g, true)
+					}
+					if len(pend) > 1 {
+						a.applyAll(c, pend)
 					}
 				}
 				if len(rest) > 0 {
@@ -159,7 +161,7 @@ func (a *App) sidebar(c *ui.Context) {
 					}
 					a.section(c, title, pal.faint, "")
 					for _, g := range rest {
-						a.gameRow(c, g)
+						a.gameRow(c, g, false)
 					}
 				}
 				if len(pend)+len(rest) == 0 {
@@ -167,6 +169,9 @@ func (a *App) sidebar(c *ui.Context) {
 				}
 			})
 		})
+		if a.busy != "" {
+			ui.Text(c, a.busy).TextColor(pal.muted).FontSize(12.5)
+		}
 		a.steamStatus(c)
 	})
 }
@@ -179,33 +184,70 @@ func (a *App) section(c *ui.Context, title string, color ui.Color, tip string) {
 }
 
 // gameRow is one game of the list: a tile of its own color, its name, and what it has set.
-func (a *App) gameRow(c *ui.Context, g *steam.Game) {
+// A pending game also has a button to apply just that game.
+func (a *App) gameRow(c *ui.Context, g *steam.Game, withApply bool) {
 	on := a.cur != nil && a.cur.AppID == g.AppID
-	row := ui.ButtonBase(c.Key("row-"+g.AppID)).Height(56).Padding(0, 10).Gap(12).Radius(12).Label(g.Name)
-	switch {
-	case on:
-		row.Background(pal.cardOn).Border(1, pal.accentDim).Shadow(0, 0, 22, 0, ui.RGBA(198, 255, 61, 0.12))
-	case row.Hovered():
-		row.Background(c.Theme().SurfaceHover)
+	outer := ui.Row(c.Key("row-" + g.AppID)).Height(56).Radius(12).Gap(4)
+	if on {
+		outer.Background(pal.cardOn).Border(1, pal.accentDim).Shadow(0, 0, 22, 0, ui.RGBA(198, 255, 61, 0.12))
 	}
-	row.Children(func() {
-		from, to := tileColors(g.Name)
-		ui.Box(c).Width(36).Height(36).Radius(9).Gradient(from, to, 135).Center().Children(func() {
-			display(ui.Text(c, initials(g.Name)), 15).TextColor(ui.Hex("#FFFFFF"))
+	outer.Children(func() {
+		row := ui.ButtonBase(c.Key("pick-"+g.AppID)).Grow(1).Height(54).Padding(0, 10).Gap(12).Radius(12).Label(g.Name)
+		if row.Hovered() && !on {
+			row.Background(c.Theme().SurfaceHover)
+		}
+		row.Children(func() {
+			from, to := tileColors(g.Name)
+			ui.Box(c).Width(36).Height(36).Radius(9).Gradient(from, to, 135).Center().Children(func() {
+				display(ui.Text(c, initials(g.Name)), 15).TextColor(ui.Hex("#FFFFFF"))
+			})
+			ui.Column(c).Grow(1).Children(func() {
+				ui.Text(c, g.Name).Bold().SingleLine()
+				ui.Text(c, a.gameSummary(g)).FontSize(12).TextColor(pal.muted).SingleLine()
+			})
+			if !withApply && a.steamLines[g.AppID] != "" {
+				dot(c, pal.cyan, false)
+			}
 		})
-		ui.Column(c).Grow(1).Children(func() {
-			ui.Text(c, g.Name).Bold().SingleLine()
-			ui.Text(c, a.gameSummary(g)).FontSize(12).TextColor(pal.muted).SingleLine()
-		})
-		switch {
-		case a.pending(g.AppID):
-			dot(c, pal.amber, false)
-		case a.steamLines[g.AppID] != "":
-			dot(c, pal.cyan, false)
+		if row.Clicked() {
+			a.selectGame(g)
+		}
+		if withApply {
+			bg, glow := a.applyColors()
+			verb := ternary(a.steamRunning, "Force apply ", "Apply ")
+			btn := ui.ButtonBase(c.Key("apply-"+g.AppID)).Width(32).Height(32).Radius(8).Margin(0, 10, 0, 0).Center().
+				Background(ternary(a.busy != "", pal.line, bg)).Label(verb + g.Name).Tooltip(a.applyTip(g.Name)).Disabled(a.busy != "")
+			if a.busy == "" {
+				btn.Shadow(0, 0, 12, 0, glow)
+			}
+			btn.Children(func() { icon(c, icons.bolt, 16, ternary(a.busy != "", pal.faint, pal.onAccent)) })
+			if btn.Clicked() {
+				a.askApply([]string{g.AppID})
+			}
 		}
 	})
-	if row.Clicked() {
-		a.selectGame(g)
+}
+
+// applyAll is the button under the pending games that applies all of them at once.
+func (a *App) applyAll(c *ui.Context, pend []*steam.Game) {
+	bg, glow := a.applyColors()
+	ids := make([]string, len(pend))
+	for i, g := range pend {
+		ids[i] = g.AppID
+	}
+	label := fmt.Sprintf("%s all · %d", ternary(a.steamRunning, "Force apply", "Apply"), len(pend))
+	btn := ui.ButtonBase(c.Key("apply-all")).Height(38).Radius(9).Gap(8).Margin(4, 0, 0, 0).Label(label).
+		Background(ternary(a.busy != "", pal.line, bg)).Tooltip(a.applyTip(fmt.Sprintf("all %d pending games", len(pend)))).Disabled(a.busy != "")
+	if a.busy == "" {
+		btn.Shadow(0, 0, 14, 0, glow)
+	}
+	btn.Children(func() {
+		fg := ternary(a.busy != "", pal.faint, pal.onAccent)
+		icon(c, icons.bolt, 15, fg)
+		display(ui.Text(c, label), 15).TextColor(fg)
+	})
+	if btn.Clicked() {
+		a.askApply(ids)
 	}
 }
 
@@ -548,28 +590,19 @@ func (a *App) dock(c *ui.Context) {
 			if ghost(c, "Discard changes", "Drop what is set here, and the preset link, and go back to what Steam has for this game.", !differs) {
 				a.discardChanges()
 			}
-			ui.Spacer(c)
-			if a.busy != "" {
-				ui.Text(c, a.busy).TextColor(pal.muted)
+			if ghost(c, "Remove all options", "Empty every launch option of this game, including the extra arguments. It is a change like any other: apply it from the list on the left, or Discard changes to undo it.", a.sel.IsEmpty()) {
+				a.removeAll()
 			}
+			ui.Spacer(c)
 			switch {
 			case !differs:
-				ui.Text(c, "Nothing to apply: this matches Steam.").FontSize(12).TextColor(pal.muted)
-				bigButton(c, ternary(a.steamRunning, "Force apply", "Apply"), ternary(a.steamRunning, pal.amber, pal.accent),
-					ternary(a.steamRunning, pal.amberGlow, pal.accentGlow), a.steamRunning, true, "")
+				ui.Text(c, "Nothing to apply: this matches Steam.").FontSize(12.5).TextColor(pal.muted)
 			case a.steamRunning:
-				ui.Text(c, "Steam is running. Force apply will try to close it, apply and reopen it.").
-					FontSize(12).TextColor(pal.amberText)
-				if bigButton(c, "Force apply", pal.amber, pal.amberGlow, true, a.busy != "",
-					"Close Steam, write these launch options, and open Steam again. Anything open in Steam, including games, will be closed. You are asked to confirm first.") {
-					a.closingSteam = true
-				}
+				ui.Text(c, "Apply it with the bolt button on the left. Steam is running, so that will close it and reopen it.").
+					FontSize(12.5).TextColor(pal.amberText)
 			default:
-				ui.Text(c, "A backup is made first. The last 10 are kept.").FontSize(12.5).TextColor(pal.muted).Margin(0, 6, 0, 0)
-				if bigButton(c, "Apply", pal.accent, pal.accentGlow, false, a.busy != "",
-					"Write these launch options into Steam's configuration. A backup is made first.") {
-					a.apply()
-				}
+				ui.Text(c, "Apply it with the bolt button on the left. A backup is made first; the last 10 are kept.").
+					FontSize(12.5).TextColor(pal.muted)
 			}
 		})
 	})
@@ -641,10 +674,9 @@ func (a *App) dialogs(c *ui.Context) {
 		"Games that use it keep their current settings.", "Cancel", "Delete") == 1 {
 		a.deletePreset()
 	}
-	if ui.AlertDialog(c, &a.closingSteam, "Force apply?",
-		"Steam will be closed, the launch options saved, and Steam opened again. Anything running in Steam, including games, will be closed.",
-		"Cancel", "Force apply") == 1 {
-		a.closeSteamAndApply()
+	if ui.AlertDialog(c, &a.closingSteam, ternary(len(a.applyIDs) > 1, fmt.Sprintf("Force apply to %d games?", len(a.applyIDs)), "Force apply?"),
+		forceMessage(len(a.applyIDs)), "Cancel", "Force apply") == 1 {
+		a.forceApply(a.applyIDs)
 	}
 }
 
@@ -696,4 +728,12 @@ func (a *App) chipEditor(c *ui.Context, id, label, tip string, tokens []string, 
 		})
 	})
 	a.chips[key] = st
+}
+
+func forceMessage(n int) string {
+	what := "the launch options saved"
+	if n > 1 {
+		what = fmt.Sprintf("the launch options of %d games saved", n)
+	}
+	return "Steam will be closed, " + what + ", and Steam opened again. Anything running in Steam, including games, will be closed."
 }

@@ -84,7 +84,7 @@ try:
     open(os.path.join(tmp, "window.png"), "wb").write(__import__("base64").b64decode(png["png"]))
     print("window capture:", os.path.join(tmp, "window.png"), png["width"], "x", png["height"])
     # Apply -> real localconfig.vdf
-    press("Apply")
+    press("Apply " + game)  # the bolt button of the pending game in the sidebar
     time.sleep(1)
     data = open(cfg, "rb").read().decode()
     check("gamescope --force-grab-cursor -- %command%" in data, "Apply wrote the launch options into the real localconfig.vdf")
