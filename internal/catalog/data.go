@@ -45,8 +45,8 @@ func Default() *Catalog {
 			Kind: kind, Slot: SlotWrapperArg, Name: flag, Aliases: long, Host: IDGamescope}
 	}
 	gsStart := map[string]string{"gs.out_w": "1920", "gs.out_h": "1080", "gs.in_w": "1920", "gs.in_h": "1080", "gs.refresh": "60", "gs.fps_limit": "60"}
-	gsInt := func(id, label, help, flag string, min, max int, long ...string) Option {
-		return with(gs(id, label, help, flag, Int, long...), func(o *Option) { o.Min, o.Max, o.Default = min, max, gsStart[id] })
+	gsInt := func(id, label, help, flag string, lo, hi int, long ...string) Option {
+		return with(gs(id, label, help, flag, Int, long...), func(o *Option) { o.Min, o.Max, o.Default = lo, hi, gsStart[id] })
 	}
 	gsSel := func(id, label, help, flag string, choices []Choice, long ...string) Option {
 		return with(gs(id, label, help, flag, Select, long...), func(o *Option) { o.Choices = choices })

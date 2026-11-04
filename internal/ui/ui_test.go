@@ -70,7 +70,6 @@ func TestToggleOptionUpdatesPreviewAndStore(t *testing.T) {
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	// switching on an Int option takes its usual starting value and turns its wrapper on
-	a.tab = 2 // the Gamescope tab, so the announcement of the automatic change shows
 	a.setOption("gs.refresh", a.cat.Initial(a.cat.Get("gs.refresh")))
 	tt.Frame()
 	if got := a.preview(); got != "gamescope -r 60 -- %command%" {
@@ -78,9 +77,6 @@ func TestToggleOptionUpdatesPreviewAndStore(t *testing.T) {
 	}
 	if as, ok := a.store.Assignment("2"); !ok || as.Overrides["gs.refresh"] != "60" || as.Overrides["gamescope"] != "1" {
 		t.Fatalf("assignment %+v", as)
-	}
-	if len(a.notes) != 1 || a.notes[0] != "Run inside gamescope turned on because Refresh rate needs it" {
-		t.Error("the automatic change was not announced")
 	}
 }
 

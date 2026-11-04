@@ -455,13 +455,14 @@ func (a *App) optionRow(c *ui.Context, o *catalog.Option, overridden bool) {
 			}
 			icon(c, icons.info, 15, pal.faint)
 		})
-		a.control(c, o, off, on)
+		a.control(c, o, off)
 	})
 }
 
-// control is the widget for the option's kind; changing it goes through setOption, which
-// switches on what the option requires and tells the user.
-func (a *App) control(c *ui.Context, o *catalog.Option, disabled, _ bool) {
+// control is the widget for a switch, a choice or a text; numbers have their own cards
+// (sliderCard, resolutionCard). Changing it goes through setOption, which switches on what
+// the option requires and tells the user.
+func (a *App) control(c *ui.Context, o *catalog.Option, disabled bool) {
 	cur, on := a.sel.Values[o.ID]
 	switch o.Kind {
 	case catalog.Bool:
@@ -489,26 +490,6 @@ func (a *App) control(c *ui.Context, o *catalog.Option, disabled, _ bool) {
 		if ui.Select(c.Key("c-"+o.ID), &shown, labels).Label(o.Label).Disabled(disabled).Width(220).Changed() {
 			a.setOption(o.ID, byLabel[shown])
 		}
-	case catalog.Int:
-		ui.Row(c).Gap(8).Children(func() {
-			v := on
-			if ui.Switch(c.Key("s-"+o.ID), &v).Label("Set " + o.Label).Disabled(disabled).Changed() {
-				if v {
-					a.setOption(o.ID, a.cat.Initial(o))
-				} else {
-					a.setOption(o.ID, "")
-				}
-			}
-			if on {
-				n := atof(cur)
-				if ui.NumberInput(c.Key("n-"+o.ID), &n, float64(o.Min), float64(o.Max), 1).Label(o.Label).Width(120).Changed() {
-					a.setOption(o.ID, itoa(int(n)))
-				}
-				if o.Unit != "" {
-					ui.Text(c, o.Unit)
-				}
-			}
-		})
 	case catalog.Text:
 		s := cur
 		if ui.TextInput(c.Key("c-"+o.ID), &s).Label(o.Label).Disabled(disabled).Width(220).Changed() {

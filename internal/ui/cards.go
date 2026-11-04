@@ -88,7 +88,7 @@ func (a *App) intro(c *ui.Context, name string, master *catalog.Option) {
 			}
 			ui.Row(c).Gap(10).Tooltip(tip).Children(func() {
 				ui.Text(c, ternary(on, "On", "Off")).TextColor(ternary(on, pal.accent, pal.muted))
-				a.control(c, master, reason != "" && !on, on)
+				a.control(c, master, reason != "" && !on)
 			})
 		}
 	})

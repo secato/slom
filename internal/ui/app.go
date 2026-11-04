@@ -48,7 +48,6 @@ type App struct {
 	cur       *steam.Game
 	sel       catalog.Selection
 	presetID  string
-	notes     []string
 	tab       int                 // the option group shown
 	chips     map[string][]string // chip editor state, by game and field
 	chipDraft map[string]string   // the text typed into each "Add…" field
@@ -178,7 +177,7 @@ func (a *App) preset(id string) *store.Preset {
 
 // selectGame loads a game into the editor: its stored assignment, or else what Steam has.
 func (a *App) selectGame(g *steam.Game) {
-	a.cur, a.notes = g, nil
+	a.cur = g
 	if as, ok := a.store.Assignment(g.AppID); ok {
 		a.presetID = as.PresetID
 		if a.preset(a.presetID) == nil {
@@ -219,7 +218,6 @@ func (a *App) commit() {
 
 // notify tells the user what slom did on its own, such as turning a wrapper on.
 func (a *App) notify(notes ...string) {
-	a.notes = notes
 	for _, n := range notes {
 		a.toast(n)
 	}
@@ -276,16 +274,6 @@ func (a *App) pending(appID string) bool {
 	}
 	p := a.preset(as.PresetID)
 	return a.lineOf(store.Effective(a.cat, p, as)) != a.steamNormalized(appID)
-}
-
-func (a *App) pendingCount() int {
-	n := 0
-	for _, g := range a.games {
-		if a.pending(g.AppID) {
-			n++
-		}
-	}
-	return n
 }
 
 // ---- presets ----

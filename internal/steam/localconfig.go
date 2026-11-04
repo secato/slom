@@ -74,9 +74,9 @@ func SetLaunchOptions(src []byte, appID, value string) ([]byte, error) {
 	default:
 		ind := childIndent(src, apps)
 		var b strings.Builder
-		b.WriteString(ind + `"` + appID + `"` + "\n" + ind + "{\n")
-		b.WriteString(ind + "\t" + `"` + launchOptionsKey + `"` + "\t\t" + `"` + EscapeVDF(value) + `"` + "\n")
-		b.WriteString(ind + "}\n")
+		fmt.Fprintf(&b, "%s\"%s\"\n%s{\n", ind, appID, ind)
+		fmt.Fprintf(&b, "%s\t\"%s\"\t\t\"%s\"\n", ind, launchOptionsKey, EscapeVDF(value))
+		fmt.Fprintf(&b, "%s}\n", ind)
 		return insertBeforeClose(src, apps, b.String()), nil
 	}
 }
