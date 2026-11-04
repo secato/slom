@@ -162,17 +162,12 @@ func (c *Catalog) Set(sel *Selection, id, v string) ([]string, error) {
 	return notes, nil
 }
 
-// Defaults are values derived from the system (the display's size and refresh rate),
-// keyed by Option.DefaultFrom.
-type Defaults map[string]int
-
 // onValue is the value that switches the option on when nothing else is known.
-func (c *Catalog) onValue(o *Option) string { return c.Initial(o, nil) }
+func (c *Catalog) onValue(o *Option) string { return c.Initial(o) }
 
-// Initial is the value an option takes when the user switches it on: the system-derived
-// default if known (clamped to the option's range), else its Default, else the first
-// choice or the minimum.
-func (c *Catalog) Initial(o *Option, d Defaults) string {
+// Initial is the value an option takes when the user switches it on: its Default, else the
+// first choice or the minimum.
+func (c *Catalog) Initial(o *Option) string {
 	switch o.Kind {
 	case Bool:
 		return "1"
@@ -182,9 +177,6 @@ func (c *Catalog) Initial(o *Option, d Defaults) string {
 		}
 		return o.Choices[0].Value
 	case Int:
-		if v, ok := d[o.DefaultFrom]; ok && o.DefaultFrom != "" {
-			return fmt.Sprint(min(max(v, o.Min), o.Max))
-		}
 		if o.Default != "" {
 			return o.Default
 		}

@@ -44,9 +44,9 @@ func Default() *Catalog {
 		return Option{ID: id, Group: "Gamescope", Label: label, Help: help, Support: supportGamescp,
 			Kind: kind, Slot: SlotWrapperArg, Name: flag, Aliases: long, Host: IDGamescope}
 	}
-	defaultFrom := map[string]string{"gs.out_w": "screen.width", "gs.out_h": "screen.height", "gs.in_w": "screen.width", "gs.in_h": "screen.height", "gs.refresh": "screen.refresh", "gs.fps_limit": "screen.refresh"}
+	gsStart := map[string]string{"gs.out_w": "1920", "gs.out_h": "1080", "gs.in_w": "1920", "gs.in_h": "1080", "gs.refresh": "60", "gs.fps_limit": "60"}
 	gsInt := func(id, label, help, flag string, min, max int, long ...string) Option {
-		return with(gs(id, label, help, flag, Int, long...), func(o *Option) { o.Min, o.Max = min, max; o.DefaultFrom = defaultFrom[id] })
+		return with(gs(id, label, help, flag, Int, long...), func(o *Option) { o.Min, o.Max, o.Default = min, max, gsStart[id] })
 	}
 	gsSel := func(id, label, help, flag string, choices []Choice, long ...string) Option {
 		return with(gs(id, label, help, flag, Select, long...), func(o *Option) { o.Choices = choices })
@@ -139,7 +139,7 @@ func Default() *Catalog {
 			Kind: Bool, Slot: SlotWrapper, Name: "mangohud", Order: 30, ConfigEnv: "MANGOHUD_CONFIG"},
 		with(mh("mh.preset", "HUD layout", "Which built-in layout MangoHud starts with.", "preset", Select), func(o *Option) { o.Choices = hudPresets }),
 		with(mh("mh.position", "HUD position", "Where the overlay appears on screen.", "position", Select), func(o *Option) { o.Choices = positions }),
-		with(mh("mh.fps_limit", "FPS limit", "Caps the game's frame rate with MangoHud's limiter. 0 means unlimited.", "fps_limit", Int), func(o *Option) { o.Min, o.Max, o.Unit, o.DefaultFrom = 0, 1000, "fps", "screen.refresh" }),
+		with(mh("mh.fps_limit", "FPS limit", "Caps the game's frame rate with MangoHud's limiter. 0 means unlimited.", "fps_limit", Int), func(o *Option) { o.Min, o.Max, o.Unit, o.Default = 0, 1000, "fps", "60" }),
 		with(mh("mh.font_size", "Font size", "Size of the overlay text.", "font_size", Int), func(o *Option) { o.Min, o.Max, o.Default = 8, 96, "24" }),
 		mh("mh.frametime", "Show frame time", "Shows how long each frame takes, next to the FPS counter. Spikes show stutter that the average FPS hides.", "frametime", Bool),
 		mh("mh.gpu_temp", "Show GPU temperature", "Shows the GPU temperature.", "gpu_temp", Bool),

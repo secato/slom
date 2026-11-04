@@ -63,10 +63,10 @@ type Option struct {
 	Max     int
 	Unit    string // shown next to Int fields
 
-	// Default is the value an Int/Text option starts with when switched on; DefaultFrom
-	// names a system-derived value (see Defaults) that takes precedence when known.
-	Default     string
-	DefaultFrom string
+	// Default is the value an Int/Text option starts with when switched on: a usual value,
+	// never one read from the machine (several screens, compositors and scalings make that
+	// unreliable).
+	Default string
 
 	Tool      string   // program that must be installed, "" if none
 	Host      string   // SlotWrapperArg/SlotConfigItem: the wrapper option this belongs to

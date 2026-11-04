@@ -449,7 +449,7 @@ func (a *App) control(c *ui.Context, o *catalog.Option, disabled, _ bool) {
 			v := on
 			if ui.Switch(c.Key("s-"+o.ID), &v).Label("Set " + o.Label).Disabled(disabled).Changed() {
 				if v {
-					a.setOption(o.ID, a.cat.Initial(o, a.defaults))
+					a.setOption(o.ID, a.cat.Initial(o))
 				} else {
 					a.setOption(o.ID, "")
 				}
@@ -552,14 +552,19 @@ func (a *App) dock(c *ui.Context) {
 			if a.busy != "" {
 				ui.Text(c, a.busy).TextColor(pal.muted)
 			}
-			if a.steamRunning {
+			switch {
+			case !differs:
+				ui.Text(c, "Nothing to apply: this matches Steam.").FontSize(12).TextColor(pal.muted)
+				bigButton(c, ternary(a.steamRunning, "Force apply", "Apply"), ternary(a.steamRunning, pal.amber, pal.accent),
+					ternary(a.steamRunning, pal.amberGlow, pal.accentGlow), a.steamRunning, true, "")
+			case a.steamRunning:
 				ui.Text(c, "Steam is running. Force apply will try to close it, apply and reopen it.").
 					FontSize(12).TextColor(pal.amberText)
 				if bigButton(c, "Force apply", pal.amber, pal.amberGlow, true, a.busy != "",
 					"Close Steam, write these launch options, and open Steam again. Anything open in Steam, including games, will be closed. You are asked to confirm first.") {
 					a.closingSteam = true
 				}
-			} else {
+			default:
 				ui.Text(c, "A backup is made first. The last 10 are kept.").FontSize(12.5).TextColor(pal.muted).Margin(0, 6, 0, 0)
 				if bigButton(c, "Apply", pal.accent, pal.accentGlow, false, a.busy != "",
 					"Write these launch options into Steam's configuration. A backup is made first.") {

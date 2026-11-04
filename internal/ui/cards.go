@@ -140,10 +140,6 @@ type size struct{ w, h int }
 // resolutions are the sizes offered: your screen's first among the usual ones.
 func (a *App) resolutions() []size {
 	out := []size{{1280, 720}, {1600, 900}, {1920, 1080}, {2560, 1440}, {3200, 1800}, {3840, 2160}}
-	if w, h := a.defaults["screen.width"], a.defaults["screen.height"]; w > 0 && h > 0 && !slices.Contains(out, size{w, h}) {
-		out = append(out, size{w, h})
-	}
-	slices.SortFunc(out, func(x, y size) int { return x.w*x.h - y.w*y.h })
 	return out
 }
 
@@ -167,11 +163,7 @@ func (a *App) resolutionCard(c *ui.Context, wo, ho *catalog.Option) {
 		cardHead(c, r.title, r.help+"\n\n"+wo.Help, value, on)
 		ui.Row(c).Wrap().Gap(6).Children(func() {
 			for _, p := range presets {
-				tip := ""
-				if p.w == a.defaults["screen.width"] && p.h == a.defaults["screen.height"] {
-					tip = "Your screen's size."
-				}
-				if choice(c, p.String(), tip, matches && p == cur) {
+				if choice(c, p.String(), "", matches && p == cur) {
 					a.customRes[a.cur.AppID+"/"+wo.ID] = false
 					if matches && p == cur {
 						a.setOption(wo.ID, "")
@@ -188,8 +180,8 @@ func (a *App) resolutionCard(c *ui.Context, wo, ho *catalog.Option) {
 				} else {
 					a.customRes[a.cur.AppID+"/"+wo.ID] = true
 					if !on {
-						a.setOption(wo.ID, a.cat.Initial(wo, a.defaults))
-						a.setOption(ho.ID, a.cat.Initial(ho, a.defaults))
+						a.setOption(wo.ID, a.cat.Initial(wo))
+						a.setOption(ho.ID, a.cat.Initial(ho))
 					}
 				}
 			}
@@ -206,26 +198,13 @@ func (a *App) resolutionCard(c *ui.Context, wo, ho *catalog.Option) {
 				}
 			})
 		}
-		if w, h := a.defaults["screen.width"], a.defaults["screen.height"]; w > 0 && h > 0 {
-			ui.Text(c, "Your screen is "+size{w, h}.String()+".").FontSize(12.5).TextColor(pal.muted)
-		}
 	})
 }
 
 // ---- numbers ----
 
-// stopsOf are the values a slider snaps to: the option's usual ones, and the screen's own
-// refresh rate where the option defaults to it.
-func (a *App) stopsOf(o *catalog.Option) []int {
-	out := slices.Clone(o.Stops)
-	if o.DefaultFrom == "screen.refresh" {
-		if r := a.defaults["screen.refresh"]; r >= o.Min && r > 0 && !slices.Contains(out, r) {
-			out = append(out, r)
-		}
-	}
-	slices.Sort(out)
-	return out
-}
+// stopsOf are the values a slider snaps to: the option's usual ones.
+func (a *App) stopsOf(o *catalog.Option) []int { return slices.Clone(o.Stops) }
 
 // nearest is the index of the stop closest to v.
 func nearest(stops []int, v int) int {
@@ -252,7 +231,7 @@ func (a *App) sliderCard(c *ui.Context, o *catalog.Option, overridden bool) {
 	stops := a.stopsOf(o)
 	n := int(atof(cur))
 	if !on {
-		n = int(atof(a.cat.Initial(o, a.defaults)))
+		n = int(atof(a.cat.Initial(o)))
 	}
 	idx := float64(nearest(stops, n))
 	exact := slices.Contains(stops, n)

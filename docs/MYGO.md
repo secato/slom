@@ -14,7 +14,6 @@ newer than v0.7.4; when in doubt use `go doc github.com/egoist/mygo/ui <Symbol>`
 - `ui.List(c, &state, n, rowFn)` with `state.Key`, `state.Selected = &int`, `Changed()` for selection.
 - Modals: `ui.Modal(c, &open, fn)`, `ui.AlertDialog(c, &open, title, msg, buttons...) int` (index of the button clicked).
 - Background work: goroutine + `win.Update(func(){...})` (runs on the main thread, redraws). Polling that rarely changes: `mygo.RunOnMain` + `win.Invalidate()` only on change (see `App.pollSteam`).
-- Display size: `mygo.Screen.PrimaryDisplay()` (DIPs; multiply by `ScaleFactor` for pixels). Refresh rate is not exposed, so `internal/ui/system.go` asks `hyprctl monitors -j`.
 
 ## Testing without a window
 `ui.NewTester(view, w, h)`: `Click("text")`, `HasText`, `Texts`, `Find("text") (Rect{X,Y,W,H}, ok)`, `Move`, `Advance(d)` (fake clock; tooltips need ~0.6 s), `Frame`, `Image()` (the last frame as `*image.RGBA`). Text-area contents are not in `Texts()`; assert on the model.

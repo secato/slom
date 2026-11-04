@@ -34,7 +34,7 @@ Open risks: Test spike outcome; MyGo native UI widget fit (tooltips, select, lis
 ## Notes from M4
 - Files: `internal/ui/app.go` (state and actions: select/import, commit, presets, apply, close-Steam-and-apply), `view.go` (layout), `system.go` (display defaults), `files.go`, `ui_test.go` (Tester-based tests).
 - Behavior: selecting a game imports Steam's line (no assignment is saved until the user edits). Every edit autosaves the game's `Assignment` (never touches Steam). Apply writes `localconfig.vdf` via `steam.WriteLaunchOptions`; a bare `%command%` is written as "no launch options". "Pending" = configured line != line in Steam.
-- Int options start from the system: `catalog.Initial` uses `Option.DefaultFrom` (`screen.width/height/refresh`) resolved by `detectDefaults`.
+- Int options start from usual values (`Option.Default`: 1920×1080, 60 Hz, 60 fps). Nothing is read from the machine: see "No screen detection" below.
 - The binary was smoke-tested for 8 s against the real Steam install (read-only; nothing written).
 - Not done / ideas: Windows, Proton version selection, a visible "overridden" legend, keyboard shortcuts.
 
@@ -60,14 +60,18 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 
 ## Redesign, second pass (2026-11-04)
 - Every tab opens with an intro card (`catalog.Summary`) saying what the group is; Gamescope and MangoHud carry their master switch in it (`catalog.Master`). Options sit under small headings (`Option.Section`, set from the `sections` table in `internal/catalog/groups.go`, ordered by `sectionOrder`).
-- Option cards by kind (`internal/ui/cards.go`): switches in two columns, selects as cards, resolution as pills (your screen's size is included, plus a Custom pill with width and height fields) for output and game size, sliders for refresh rate, frame rate limits, sharpness and font size. A slider is dimmed until touched; "Clear" unsets it.
+- Option cards by kind (`internal/ui/cards.go`): switches in two columns, selects as cards, resolution as pills (standard sizes, plus a Custom pill with width and height fields) for output and game size, sliders for refresh rate, frame rate limits, sharpness and font size. A slider is dimmed until touched; "Clear" unsets it.
 - Pending fix: Steam's line is read and re-rendered before comparing (`App.steamNormalized`), so a line that only differs in order or spacing is no longer "pending" forever. **Discard changes** (dock) drops the game's assignment and preset link and goes back to what Steam has; it replaces "Re-import from Steam". It is disabled when nothing differs.
 - The header wash and the sidebar tile share the game's hue (`gameHue`, `washColor`, `tileColors` in `theme.go`).
 - `scripts/e2e.py` reads the line from the label of the command box. The Copy and Apply steps were not rerun after this pass (Steam was running); a read-only variant (select, tab, switches, preview) passed against the real window.
 
 ## Usual values with free input (2026-11-04)
-- Numbers snap to usual values and still take any value: `Option.Stops` (table `stops` in `internal/catalog/groups.go`: rates 30, 60, 90, 120, 144, 180, 240; sharpness 0 to 20 by 5; font size 16 to 48) plus the screen's own refresh rate (`App.stopsOf`). The slider moves over the stops; the field next to it takes any value in the option's range, and the slider is dimmed while the value is not one of the stops. Units (`Hz`, `fps`, `px`) come from the `units` table.
+- Numbers snap to usual values and still take any value: `Option.Stops` (table `stops` in `internal/catalog/groups.go`: rates 30, 60, 90, 120, 144, 180, 240; sharpness 0 to 20 by 5; font size 16 to 48). The slider moves over the stops; the field next to it takes any value in the option's range, and the slider is dimmed while the value is not one of the stops. Units (`Hz`, `fps`, `px`) come from the `units` table.
 - Sizes already had pills plus a Custom pill. Choice lists (scaler, filter, HUD layout and position, DLSS preset) are closed sets by nature. The "More" chips have no suggestions on purpose: slom does not invent variables.
+
+## No screen detection, and Apply needs a change (2026-11-04)
+- Removed `internal/ui/system.go`, `catalog.Defaults`, `Option.DefaultFrom` and the "Your screen is …" line. Reading the screen was wrong on a multi-monitor machine (it reported the secondary 1080p display instead of the 1440p main one), and compositors and scaling differ too much to trust. Starting values are fixed usual ones in `catalog/data.go` (`gsStart`, 60 for MangoHud's limit); the user picks or types the real value. Do not add detection back without a way to choose the monitor.
+- **Apply** and **Force apply** are disabled when the editor's line matches Steam's (after normalizing), with "Nothing to apply: this matches Steam." next to them.
 
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.

@@ -25,11 +25,10 @@ type App struct {
 	win *mygo.Window
 	ctx *ui.Context
 
-	cat      *catalog.Catalog
-	tools    catalog.Tools
-	defaults catalog.Defaults
-	store    *store.Store
-	backups  string
+	cat     *catalog.Catalog
+	tools   catalog.Tools
+	store   *store.Store
+	backups string
 
 	install steam.Install
 	hasInst bool
@@ -81,7 +80,6 @@ func New(st *store.Store, backups string) *App {
 // Start is called once the window exists.
 func (a *App) Start(win *mygo.Window) {
 	a.win = win
-	a.defaults = detectDefaults()
 	a.loadSteam()
 	go a.pollSteam()
 }

@@ -26,7 +26,6 @@ func testApp(t *testing.T) *App {
 	}
 	a := New(st, t.TempDir())
 	a.tools = catalog.AllTools(a.cat)
-	a.defaults = catalog.Defaults{"screen.width": 2560, "screen.height": 1440, "screen.refresh": 165}
 	a.users = []steam.User{{AccountID: "1", Name: "me", ConfigPath: t.TempDir() + "/localconfig.vdf"}}
 	a.games = []steam.Game{
 		{AppID: "570", Name: "Dota 2", HasProtonPrefix: true},
@@ -72,14 +71,14 @@ func TestToggleOptionUpdatesPreviewAndStore(t *testing.T) {
 	a := testApp(t)
 	tt := ui.NewTester(a.View, 1180, 780)
 	tt.Click("Native Thing")
-	// switching on an Int option takes the system-derived default and turns its wrapper on
+	// switching on an Int option takes its usual starting value and turns its wrapper on
 	a.tab = 2 // the Gamescope tab, so the announcement of the automatic change shows
-	a.setOption("gs.refresh", a.cat.Initial(a.cat.Get("gs.refresh"), a.defaults))
+	a.setOption("gs.refresh", a.cat.Initial(a.cat.Get("gs.refresh")))
 	tt.Frame()
-	if got := a.preview(); got != "gamescope -r 165 -- %command%" {
+	if got := a.preview(); got != "gamescope -r 60 -- %command%" {
 		t.Fatalf("preview %q", got)
 	}
-	if as, ok := a.store.Assignment("2"); !ok || as.Overrides["gs.refresh"] != "165" || as.Overrides["gamescope"] != "1" {
+	if as, ok := a.store.Assignment("2"); !ok || as.Overrides["gs.refresh"] != "60" || as.Overrides["gamescope"] != "1" {
 		t.Fatalf("assignment %+v", as)
 	}
 	if !tt.HasText("Run inside gamescope turned on because Refresh rate needs it") {
@@ -294,6 +293,7 @@ func TestForceApplyReplacesApplyWhileSteamRuns(t *testing.T) {
 		t.Fatalf("no Apply button: %q", tt.Texts())
 	}
 	a.steamRunning = true
+	a.setOption("gs.refresh", "60") // something to apply
 	tt.Frame()
 	if tt.HasText("Steam is running. Force apply will try to close it, apply and reopen it.") == false {
 		t.Fatalf("no explanation next to Force apply: %q", tt.Texts())
@@ -393,16 +393,13 @@ func TestResolutionPillsSetWidthAndHeightTogether(t *testing.T) {
 	}
 }
 
-func TestSlidersSnapToUsualValuesAndAddTheScreensRate(t *testing.T) {
-	a := testApp(t) // the screen refreshes at 165 Hz
+func TestSlidersSnapToUsualValuesAndKeepCustomOnes(t *testing.T) {
+	a := testApp(t)
 	o := a.cat.Get("gs.refresh")
 	got := a.stopsOf(o)
-	want := []int{30, 60, 90, 120, 144, 165, 180, 240}
+	want := []int{30, 60, 90, 120, 144, 180, 240}
 	if !slices.Equal(got, want) {
 		t.Fatalf("stops %v, want %v", got, want)
-	}
-	if i := nearest(got, 100); got[i] != 90 && got[i] != 120 {
-		t.Errorf("100 Hz snaps to %d", got[i])
 	}
 	if i := nearest(got, 143); got[i] != 144 {
 		t.Errorf("143 Hz snaps to %d", got[i])
@@ -412,5 +409,49 @@ func TestSlidersSnapToUsualValuesAndAddTheScreensRate(t *testing.T) {
 	a.setOption("gs.refresh", "100")
 	if a.sel.Values["gs.refresh"] != "100" {
 		t.Errorf("custom value lost: %q", a.sel.Values["gs.refresh"])
+	}
+}
+
+func TestNoScreenIsAssumed(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Native Thing")
+	tt.Click("Gamescope")
+	for _, s := range tt.Texts() {
+		if strings.Contains(s, "Your screen") {
+			t.Errorf("the window guesses the screen: %q", s)
+		}
+	}
+	if got := a.cat.Initial(a.cat.Get("gs.out_w")) + "x" + a.cat.Initial(a.cat.Get("gs.out_h")); got != "1920x1080" {
+		t.Errorf("sizes start at %s, not a standard value", got)
+	}
+}
+
+func TestApplyIsDisabledWithoutChanges(t *testing.T) {
+	for _, running := range []bool{false, true} {
+		a := testApp(t)
+		a.steamRunning = running
+		tt := ui.NewTester(a.View, 1180, 780)
+		tt.Click("Dota 2") // read from Steam: nothing to apply
+		tt.Frame()
+		name := ternary(running, "Force apply", "Apply")
+		if !tt.HasText("Nothing to apply: this matches Steam.") {
+			t.Fatalf("running=%v: no explanation: %q", running, tt.Texts())
+		}
+		tt.Click(name)
+		if a.closingSteam {
+			t.Errorf("running=%v: %s opened its confirmation without changes", running, name)
+		}
+		// after a change it works again
+		a.setOption("gs.refresh", "60")
+		tt.Frame()
+		if tt.HasText("Nothing to apply: this matches Steam.") {
+			t.Errorf("running=%v: still nothing to apply after a change", running)
+		}
+		if running {
+			if err := tt.Click("Force apply"); err != nil || !a.closingSteam {
+				t.Errorf("Force apply does not work with changes: %v %v", err, a.closingSteam)
+			}
+		}
 	}
 }
