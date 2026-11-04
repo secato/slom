@@ -51,6 +51,13 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 - `Option.Platform` exists and is `"linux"` for every option (asserted in tests).
 - Spike script now warns that the game may really start and asks for confirmation.
 
+## Redesign pass (2026-11-04)
+- Implemented the "gamer" redesign from the design canvas (https://claude.ai/artifact/7rR968RT4KVTKFx8Ndzpdz): dark theme, embedded fonts and icons, sidebar with game tiles and a **PENDING APPLY** section (replaces "N game(s) out of date"), hero header, tabs with counts of set options, option cards in two columns, and a command dock with a colored command, "Steam currently has: …", Copy / Edit as text / Re-import, and the main button.
+- The Steam-running banner and its "Close Steam, apply, reopen" button are gone. While Steam runs the main button is **Force apply** (amber, with the explanation next to it); the confirmation dialog stays. Otherwise it is **Apply** (green).
+- "Everything else" tab is now **More**; "Import from Steam" is **Re-import from Steam**; the tab dot is a count.
+- Not built from the canvas (follow-ups): resolution preset pills and a refresh-rate slider (still number inputs), a progress state while Steam restarts, arrow-key navigation in the game list, a hover legend for the sidebar dots (amber = pending, cyan = has options in Steam).
+- Verified: unit/Tester tests, `docs/screenshot.png` regenerated, and a read-only launch of the real window (Steam running) against the real games. `scripts/e2e.py` was not rerun after the redesign because Steam was running (it writes the real file); rerun it with Steam closed.
+
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.
 - Multiple Steam accounts are covered by `TestSwitchingSteamAccount` (fixtures), not by a real second account.

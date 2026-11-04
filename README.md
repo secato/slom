@@ -15,7 +15,7 @@ go build -o slom ./cmd/slom
 ./slom
 ```
 
-Needs Go 1.27+ and Linux. Close Steam to apply (or let slom close and reopen it for you).
+Needs Go 1.27+ and Linux. Close Steam to apply, or use Force apply and slom closes and reopens it for you.
 slom backs up `localconfig.vdf` before every change.
 
 - **Presets**: save a setup like "Native 1440p 165Hz" once and use it on many games.

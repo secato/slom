@@ -42,7 +42,6 @@ type App struct {
 
 	// list
 	query       string
-	list        ui.ListState
 	visible     []int // indices into games
 	sidebarSize float32
 

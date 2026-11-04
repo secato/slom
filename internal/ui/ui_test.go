@@ -56,7 +56,7 @@ func TestSelectGameImportsSteamLine(t *testing.T) {
 	if !tt.HasText("Proton") || !tt.HasText("Write a Proton log") {
 		t.Error("the first group is not shown")
 	}
-	if err := tt.Click("Gamescope •"); err != nil {
+	if err := tt.Click("Gamescope"); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("Run inside gamescope") || !tt.HasText("Output width") {
@@ -105,8 +105,14 @@ func TestPresetFlow(t *testing.T) {
 	if a.presetID != "native-1440p" {
 		t.Fatalf("preset id %q", a.presetID)
 	}
+	tt.Frame() // the list reorders: Dota 2 is now pending
 	// another game takes the preset
-	tt.Click("Native Thing")
+	if err := tt.Click("Native Thing"); err != nil {
+		t.Fatal(err)
+	}
+	if a.cur.AppID != "2" {
+		t.Fatalf("clicked game is %s", a.cur.AppID)
+	}
 	a.choosePreset("native-1440p")
 	if got := a.preview(); got != "gamescope -W 2560 -H 1440 -r 180 --force-grab-cursor -- %command%" {
 		t.Fatalf("preview %q", got)
@@ -173,13 +179,15 @@ func TestScreenshot(t *testing.T) {
 	tt := ui.NewTester(a.View, 1180, 780)
 	tt.Click("ELDEN RING")
 	a.saveAsPreset("RTX sharp")
-	a.tab = 1
+	a.tab = 2 // Gamescope
+	a.steamRunning = true
+	a.sel.CustomWrap = []string{"taskset", "-c", "0-7"}
 	for _, kv := range [][2]string{{"gs.out_w", "2560"}, {"gs.out_h", "1440"}, {"gs.in_w", "1920"}, {"gs.in_h", "1080"}, {"gs.refresh", "165"}, {"gs.filter", "fsr"}, {"gs.force_grab", "1"}, {"mh.position", "top-right"}, {"mh.frametime", "1"}, {"gamemode", "1"}} {
 		a.setOption(kv[0], kv[1])
 	}
 	tt.Frame()
 	// rest the pointer on a label so the screenshot shows a tooltip
-	if r, ok := tt.Find("DLSS Super Resolution preset"); ok {
+	if r, ok := tt.Find("Refresh rate"); ok {
 		tt.Move(r.X+r.W/2, r.Y+r.H/2)
 		tt.Advance(time.Second)
 	}
@@ -198,7 +206,7 @@ func TestChipsGroupAndNeverSplitOnCommas(t *testing.T) {
 	a.steamLines["2"] = "FOO=bar taskset -c 0-3 %command% -a 'b c' -windowed"
 	tt := ui.NewTester(a.View, 1180, 780)
 	tt.Click("Native Thing")
-	if err := tt.Click("Everything else"); err != nil {
+	if err := tt.Click("More"); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("Before the game: commands") {
@@ -272,5 +280,55 @@ func TestSwitchingSteamAccount(t *testing.T) {
 	}
 	if a.cur != nil {
 		t.Error("the open game should be closed when the account changes")
+	}
+}
+
+func TestForceApplyReplacesApplyWhileSteamRuns(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Dota 2")
+	if tt.HasText("Force apply") {
+		t.Fatal("Force apply is offered while Steam is closed")
+	}
+	if !tt.HasText("Apply") {
+		t.Fatalf("no Apply button: %q", tt.Texts())
+	}
+	a.steamRunning = true
+	tt.Frame()
+	if tt.HasText("Steam is running. Force apply will try to close it, apply, and reopen it.") == false {
+		t.Fatalf("no explanation next to Force apply: %q", tt.Texts())
+	}
+	if err := tt.Click("Force apply"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.closingSteam {
+		t.Fatal("Force apply must ask for confirmation before closing Steam")
+	}
+	tt.Frame()
+	if !tt.HasText("Steam will be closed, the launch options saved, and Steam opened again. Anything running in Steam, including games, will be closed.") {
+		t.Fatalf("confirmation does not say what happens: %q", tt.Texts())
+	}
+}
+
+func TestPendingGamesAreGroupedInTheSidebar(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	if tt.HasText("PENDING APPLY · 1") {
+		t.Fatal("nothing is configured yet")
+	}
+	tt.Click("Dota 2")
+	a.saveAsPreset("Native 1440p") // differs from the line Steam has
+	tt.Frame()
+	for _, want := range []string{"PENDING APPLY · 1", "OTHER GAMES · 2", "Proton · 5 options", "Native · none"} {
+		if !tt.HasText(want) {
+			t.Errorf("sidebar lacks %q: %q", want, tt.Texts())
+		}
+	}
+	for _, bad := range []string{"out of date", "game(s)"} {
+		for _, s := range tt.Texts() {
+			if strings.Contains(s, bad) {
+				t.Errorf("old wording %q is back: %q", bad, s)
+			}
+		}
 	}
 }

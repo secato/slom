@@ -11,7 +11,7 @@ from labeled controls, with a tooltip per option and a live preview of the whole
 - **Apply** edits `localconfig.vdf` directly, only while Steam is closed.
 - Only the `LaunchOptions` value of one app is rewritten (insert the key if missing); every other byte is preserved.
 - Backup before every write (`~/.local/state/slom/backups/`, keep last 10), re-parse after writing, restore the backup if the check fails.
-- Steam running: Apply disabled with a banner. A "Close Steam, apply, reopen" button states Steam will be closed and restarted (`steam -shutdown`, wait, write, relaunch).
+- Steam running: there is no banner. The sidebar shows "Steam is running / Changes wait for Apply", and the main button in the command dock becomes **Force apply**, with the line "Steam is running. Force apply will try to close it, apply, and reopen it." It still asks for confirmation (the dialog says Steam will be closed, the options saved, Steam opened again, and that games are closed too), then runs `steam -shutdown`, waits, writes, relaunches.
 - **Copy** puts the full command line on the clipboard.
 - **Test** (only if the spike works): launch the game with the current options without saving; the UI says it is temporary and Apply makes it permanent. Spike: does `steam://run/<id>//<options>/` honor wrappers/env vars? If not, drop Test entirely (do not launch outside Steam).
 
@@ -32,7 +32,7 @@ Variable names/values must be verified against current Proton and DXVK-NVAPI doc
 Fixed order: env vars, `gamemoderun`, `gamescope ... --`, `mangohud`, `%command%`, custom args. Each option declares its slot; the renderer sorts.
 
 ## Presets and import
-- Reusable presets, **linked** to games: a game uses one preset plus per-game overrides (overrides are marked, "reset to preset" exists). Editing a preset marks affected games "out of date" until Apply ("N games out of date").
+- Reusable presets, **linked** to games: a game uses one preset plus per-game overrides (overrides are marked, "reset to preset" exists). Editing a preset puts affected games in the sidebar's **PENDING APPLY** section until applied.
 - Import of an existing launch line: recognized tokens become controls; the rest becomes custom args, shown as editable chips (one per unrecognized token or `-- wrapper` group) with a raw-text toggle; order preserved, nothing dropped.
 - Data in `~/.config/slom/` as plain JSON (`presets.json`, `assignments.json`).
 

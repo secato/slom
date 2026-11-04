@@ -2,18 +2,24 @@ package ui
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"github.com/secato/slom/internal/catalog"
 	"github.com/secato/slom/internal/parse"
+	"github.com/secato/slom/internal/render"
+	"github.com/secato/slom/internal/steam"
 	"github.com/secato/slom/internal/store"
 )
 
 // View builds the whole window.
 func (a *App) View(c *ui.Context) {
+	setup()
+	c.SetTheme(gamerTheme())
 	a.ctx = c
 	t := c.Theme()
 	ui.Column(c).Fill().Children(func() {
@@ -29,11 +35,83 @@ func (a *App) View(c *ui.Context) {
 	})
 }
 
+// ---- small parts of the look ----
+
+// display is the title font: condensed, spaced out.
+func display(e ui.Element, size float32) ui.Element {
+	return e.Font(fontDisplay + ", system-ui").Bold().FontSize(size).LetterSpacing(size / 14)
+}
+
+// mono is the command font.
+func mono(e ui.Element, size float32) ui.Element {
+	return e.Font(fontMono + ", monospace").FontSize(size)
+}
+
+// pill is a small rounded label, such as "live preview".
+func pill(c *ui.Context, text string, bg, fg ui.Color) {
+	ui.Box(c).Padding(1, 8).Radius(99).Background(bg).Children(func() {
+		mono(ui.Text(c, text), 11).TextColor(fg)
+	})
+}
+
+// dot is a small round status light, with a glow when lit.
+func dot(c *ui.Context, color ui.Color, glow bool) {
+	b := ui.Box(c).Width(8).Height(8).Radius(4).Background(color)
+	if glow {
+		b.Shadow(0, 0, 8, 0, color)
+	}
+}
+
+// ghost is a quiet button, for what is not the main action.
+func ghost(c *ui.Context, label, tip string, disabled bool) bool {
+	b := ui.ButtonBase(c.Key("ghost-"+label)).Height(38).Padding(0, 12).Radius(9).Gap(8).Tooltip(tip).Disabled(disabled)
+	if b.Hovered() && !disabled {
+		b.Background(c.Theme().SurfaceHover)
+	}
+	b.Children(func() {
+		if label == "Copy" {
+			icon(c, icons.copy, 14, pal.muted)
+		}
+		ui.Text(c, label).TextColor(ternary(disabled, pal.faint, pal.text))
+	})
+	return b.Clicked()
+}
+
+// bigButton is the one loud action of the window: green to Apply, amber to Force apply.
+func bigButton(c *ui.Context, label string, bg, glow ui.Color, withBolt, disabled bool, tip string) bool {
+	b := ui.ButtonBase(c.Key("main-"+label)).Height(44).Padding(0, 24).Radius(10).Gap(10).Tooltip(tip).Disabled(disabled)
+	if disabled {
+		b.Background(pal.line)
+	} else {
+		b.Background(bg).Shadow(0, 0, 22, 0, glow)
+	}
+	b.Children(func() {
+		fg := ternary(disabled, pal.faint, pal.onAccent)
+		if withBolt {
+			icon(c, icons.bolt, 16, fg)
+		}
+		display(ui.Text(c, label), 17).LetterSpacing(1.5).TextColor(fg)
+	})
+	return b.Clicked()
+}
+
+func ternary[T any](ok bool, a, b T) T {
+	if ok {
+		return a
+	}
+	return b
+}
+
 // ---- left: the game list ----
 
 func (a *App) sidebar(c *ui.Context) {
-	t := c.Theme()
-	ui.Column(c).Fill().Padding(12).Gap(8).Children(func() {
+	ui.Column(c).Fill().Background(pal.panel).Padding(18, 14).Gap(14).Children(func() {
+		ui.Row(c).Gap(10).Padding(0, 4).Children(func() {
+			ui.Box(c).Width(30).Height(30).Radius(8).Background(pal.accent).Center().Shadow(0, 0, 18, 0, pal.accentGlow).Children(func() {
+				icon(c, icons.bolt, 18, pal.onAccent)
+			})
+			display(ui.Text(c, "SLOM"), 26)
+		})
 		if ui.SearchField(c.Key("search"), &a.query).Placeholder("Search games").Label("Search games").Changed() {
 			a.refilter()
 		}
@@ -56,94 +134,199 @@ func (a *App) sidebar(c *ui.Context) {
 			}
 		}
 
-		sel := -1
-		for row, gi := range a.visible {
-			if a.cur != nil && a.games[gi].AppID == a.cur.AppID {
-				sel = row
+		var pend, rest []*steam.Game
+		for _, gi := range a.visible {
+			g := &a.games[gi]
+			if a.pending(g.AppID) {
+				pend = append(pend, g)
+			} else {
+				rest = append(rest, g)
 			}
 		}
-		a.list.Key = func(i int) any { return a.games[a.visible[i]].AppID }
-		a.list.Label = func(i int) string { return a.games[a.visible[i]].Name }
-		a.list.Selected = &sel
-		list := ui.List(c, &a.list, len(a.visible), func(i int) {
-			g := a.games[a.visible[i]]
-			ui.Row(c).Gap(8).Padding(6, 8).Children(func() {
-				ui.Text(c, g.Name).SingleLine().Grow(1)
-				switch {
-				case a.pending(g.AppID):
-					ui.Badge(c, "pending").Tooltip("Configured in slom, but different from what Steam has. Apply it.")
-				case a.steamLines[g.AppID] != "":
-					ui.Text(c, "●").TextColor(t.Accent).Tooltip("Has launch options in Steam")
+		ui.Scroll(c).Grow(1).Children(func() {
+			ui.Column(c).Gap(4).Children(func() {
+				if len(pend) > 0 {
+					a.section(c, fmt.Sprintf("PENDING APPLY · %d", len(pend)), pal.amber,
+						"Configured in slom, but different from what Steam has. Select one and apply it.")
+					for _, g := range pend {
+						a.gameRow(c, g)
+					}
+				}
+				if len(rest) > 0 {
+					title := fmt.Sprintf("ALL GAMES · %d", len(rest))
+					if len(pend) > 0 {
+						title = fmt.Sprintf("OTHER GAMES · %d", len(rest))
+					}
+					a.section(c, title, pal.faint, "")
+					for _, g := range rest {
+						a.gameRow(c, g)
+					}
+				}
+				if len(pend)+len(rest) == 0 {
+					ui.Text(c, "No installed games match.").TextColor(pal.muted)
 				}
 			})
-		}).Grow(1)
-		if list.Changed() && sel >= 0 && sel < len(a.visible) {
-			a.selectGame(&a.games[a.visible[sel]])
+		})
+		a.steamStatus(c)
+	})
+}
+
+func (a *App) section(c *ui.Context, title string, color ui.Color, tip string) {
+	ui.Row(c.Key("sec-"+title)).Gap(8).Padding(10, 6, 2).Tooltip(tip).Children(func() {
+		dot(c, color, false)
+		display(ui.Text(c, title), 12).TextColor(pal.muted)
+	})
+}
+
+// gameRow is one game of the list: a tile of its own color, its name, and what it has set.
+func (a *App) gameRow(c *ui.Context, g *steam.Game) {
+	on := a.cur != nil && a.cur.AppID == g.AppID
+	row := ui.ButtonBase(c.Key("row-"+g.AppID)).Height(56).Padding(0, 10).Gap(12).Radius(12).Label(g.Name)
+	switch {
+	case on:
+		row.Background(pal.cardOn).Border(1, pal.accentDim).Shadow(0, 0, 22, 0, ui.RGBA(198, 255, 61, 0.12))
+	case row.Hovered():
+		row.Background(c.Theme().SurfaceHover)
+	}
+	row.Children(func() {
+		from, to := tileColors(g.Name)
+		ui.Box(c).Width(36).Height(36).Radius(9).Gradient(from, to, 135).Center().Children(func() {
+			display(ui.Text(c, initials(g.Name)), 15).TextColor(ui.Hex("#FFFFFF"))
+		})
+		ui.Column(c).Grow(1).Children(func() {
+			ui.Text(c, g.Name).Bold().SingleLine()
+			ui.Text(c, a.gameSummary(g)).FontSize(12).TextColor(pal.muted).SingleLine()
+		})
+		switch {
+		case a.pending(g.AppID):
+			dot(c, pal.amber, false)
+		case a.steamLines[g.AppID] != "":
+			dot(c, pal.cyan, false)
 		}
-		if len(a.visible) == 0 {
-			ui.Text(c, "No installed games match.").TextColor(t.TextMuted)
+	})
+	if row.Clicked() {
+		a.selectGame(g)
+	}
+}
+
+// gameSummary is "Proton · 2 options": how the game runs and how much is set.
+func (a *App) gameSummary(g *steam.Game) string {
+	runs := "Native"
+	if g.HasProtonPrefix {
+		runs = "Proton"
+	}
+	n := a.optionCount(g.AppID)
+	switch n {
+	case 0:
+		if a.steamLines[g.AppID] != "" {
+			return runs + " · custom args"
 		}
-		if n := a.pendingCount(); n > 0 {
-			ui.Text(c, fmt.Sprintf("%d game(s) out of date", n)).TextColor(t.Warning).FontSize(12).
-				Tooltip("Their configuration in slom differs from the launch options in Steam. Select each and Apply.")
+		return runs + " · none"
+	case 1:
+		return runs + " · 1 option"
+	}
+	return fmt.Sprintf("%s · %d options", runs, n)
+}
+
+// optionCount is how many catalog options the game's line sets.
+func (a *App) optionCount(appID string) int {
+	if as, ok := a.store.Assignment(appID); ok {
+		return len(store.Effective(a.cat, a.preset(as.PresetID), as).Values)
+	}
+	return len(parse.Parse(a.cat, a.steamLines[appID]).Values)
+}
+
+func initials(name string) string {
+	var out []rune
+	for _, w := range strings.Fields(name) {
+		out = append(out, []rune(strings.ToUpper(w))[0])
+		if len(out) == 2 {
+			break
 		}
+	}
+	return string(out)
+}
+
+// steamStatus says whether Apply writes right away or has to wait for Steam.
+func (a *App) steamStatus(c *ui.Context) {
+	bg, border, fg, name, note := pal.cyanDim, pal.cyanBorder, pal.cyan, "Steam is closed", "Apply saves right away"
+	if a.steamRunning {
+		bg, border, fg, name, note = pal.amberDim, pal.amberBorder, pal.amber, "Steam is running", "Changes wait for Apply"
+	}
+	ui.Row(c).Gap(10).Padding(10, 12).Radius(10).Background(bg).Border(1, border).Children(func() {
+		dot(c, fg, a.steamRunning)
+		ui.Column(c).Grow(1).Children(func() {
+			ui.Text(c, name).Bold().FontSize(12.5).TextColor(fg)
+			ui.Text(c, note).FontSize(12.5).TextColor(pal.muted)
+		})
 	})
 }
 
 // ---- right: the editor ----
 
 func (a *App) editor(c *ui.Context) {
-	t := c.Theme()
 	if a.cur == nil {
 		ui.Column(c).Fill().Center().Gap(6).Children(func() {
-			ui.Text(c, "Pick a game").Bold().FontSize(18)
-			ui.Text(c, "Choose a game on the left to set its Proton, DLSS, gamescope and MangoHud options.").TextColor(t.TextMuted)
+			display(ui.Text(c, "PICK A GAME"), 28)
+			ui.Text(c, "Choose a game on the left to set its Proton, DLSS, gamescope and MangoHud options.").TextColor(pal.muted).MaxWidth(420).TextAlign(ui.Center)
 		})
 		return
 	}
 	g := a.cur
 	// the key scopes every control to the game, so no editing state leaks between games
-	ui.Column(c.Key("game-" + g.AppID)).Fill().Padding(16).Gap(12).Children(func() {
-		ui.Row(c).Gap(10).Children(func() {
-			ui.Text(c, g.Name).Bold().FontSize(20).SingleLine()
-			ui.Text(c, "App "+g.AppID).TextColor(t.TextMuted)
-			ui.Spacer(c)
-			if !g.HasProtonPrefix {
-				ui.Badge(c, "no Proton prefix").Tooltip("No Proton prefix was found for this game: it is probably a native Linux game, or has not run through Proton yet. Proton and DLSS options only apply to Windows games run through Proton.")
-			}
-		})
-		if a.steamRunning {
-			a.steamBanner(c)
-		}
-		a.presetBar(c)
-		groups := a.cat.Groups()
-		tabs := append(a.tabLabels(groups), "Everything else")
-		ui.Segmented(c.Key("tabs"), &a.tab, tabs...).Label("Option groups")
-		ui.Scroll(c).Grow(1).Gap(14).Padding(0, 8, 0, 0).Children(func() {
-			ui.Column(c).MaxWidth(820).Gap(14).Children(func() {
-				if a.tab >= 0 && a.tab < len(groups) {
-					a.group(c, groups[a.tab])
-				} else {
-					a.extras(c)
-				}
+	ui.Column(c.Key("game-" + g.AppID)).Fill().Children(func() {
+		a.header(c, g)
+		ui.Column(c).Grow(1).Padding(16, 32, 18).Gap(12).Children(func() {
+			groups := a.cat.Groups()
+			a.tabs(c, groups)
+			ui.Scroll(c).Grow(1).Children(func() {
+				ui.Column(c).Gap(10).Padding(0, 8, 0, 0).Children(func() {
+					if a.tab >= 0 && a.tab < len(groups) {
+						a.group(c, groups[a.tab])
+					} else {
+						a.extras(c)
+					}
+				})
 			})
+			a.dock(c)
 		})
-		a.footer(c)
 	})
 }
 
-func (a *App) steamBanner(c *ui.Context) {
-	t := c.Theme()
-	ui.Row(c).Gap(10).Padding(10, 12).Radius(8).Border(1, t.Warning).Children(func() {
-		ui.Text(c, "Steam is running, so slom can't save to it. Close Steam and press Apply, or let slom do it.").Grow(1)
-		if ui.Button(c, "Close Steam, apply, reopen").Disabled(a.busy != "").Clicked() {
-			a.closingSteam = true
+// header is the game's name over a green-to-dark wash, with its facts and its preset.
+func (a *App) header(c *ui.Context, g *steam.Game) {
+	ui.Column(c).Padding(22, 32, 18).Gap(2).Gradient(ui.Hex("#16210A"), pal.ground, 110).Children(func() {
+		runs, tip := "NATIVE", "No Proton prefix was found for this game: it is probably a native Linux game, or has not run through Proton yet. Proton and DLSS options only apply to Windows games run through Proton."
+		if g.HasProtonPrefix {
+			runs, tip = "PROTON", "This game has a Proton prefix, so it runs through Proton."
 		}
+		meta := fmt.Sprintf("APP %s · %s", g.AppID, runs)
+		if g.LastPlayed > 0 {
+			meta += " · LAST PLAYED " + ago(time.Unix(g.LastPlayed, 0), time.Now())
+		}
+		ui.Row(c).Gap(16).Children(func() {
+			mono(ui.Text(c, meta), 12).TextColor(pal.muted).LetterSpacing(0.6).Tooltip(tip).Grow(1)
+			a.presetBar(c)
+		})
+		display(ui.Text(c, strings.ToUpper(g.Name)), 40).SingleLine()
 	})
+}
+
+// ago says how long ago, in the unit a person would use.
+func ago(then, now time.Time) string {
+	d := now.Sub(then)
+	switch {
+	case d < 24*time.Hour:
+		return "TODAY"
+	case d < 48*time.Hour:
+		return "YESTERDAY"
+	case d < 60*24*time.Hour:
+		return fmt.Sprintf("%d DAYS AGO", int(d.Hours()/24))
+	}
+	return fmt.Sprintf("%d MONTHS AGO", int(d.Hours()/24/30))
 }
 
 func (a *App) presetBar(c *ui.Context) {
-	t := c.Theme()
 	presets := a.store.Presets()
 	labels := []string{store.NoPresetLabel}
 	byLabel := map[string]string{store.NoPresetLabel: ""}
@@ -156,8 +339,8 @@ func (a *App) presetBar(c *ui.Context) {
 		}
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		ui.Text(c, "Preset").Tooltip("A preset is a reusable set of options. A game linked to a preset follows it; the changes you make to this game are kept as its own overrides (marked •).")
-		if ui.Select(c.Key("preset"), &cur, labels).Label("Preset").Width(220).Changed() {
+		ui.Text(c, "Preset").TextColor(pal.muted).Tooltip("A preset is a reusable set of options. A game linked to a preset follows it; the changes you make to this game are kept as its own overrides (marked •).")
+		if ui.Select(c.Key("preset"), &cur, labels).Label("Preset").Width(200).Changed() {
 			a.choosePreset(byLabel[cur])
 		}
 		ui.Button(c, "Save as preset…").Tooltip("Save the current settings as a new preset and link this game to it.").OnClick(func() {
@@ -168,21 +351,45 @@ func (a *App) presetBar(c *ui.Context) {
 			ui.Button(c, "Update preset").Tooltip(fmt.Sprintf("Write this game's settings into the preset. It is used by %d game(s), which will then be out of date until applied.", n)).OnClick(a.updatePreset)
 			ui.Button(c, "Delete preset").OnClick(func() { a.deletingPreset = true })
 		}
-		ui.Spacer(c)
-		for _, n := range a.notes {
-			ui.Text(c, n).TextColor(t.TextMuted).FontSize(12)
-		}
 	})
 }
 
-// group builds the options of one catalog group.
+// tabs is one tab per option group, with a count of what the game sets in it, and "More".
+func (a *App) tabs(c *ui.Context, groups []string) {
+	used := map[string]int{}
+	for id := range a.sel.Values {
+		if o := a.cat.Get(id); o != nil {
+			used[o.Group]++
+		}
+	}
+	names := append(slices.Clone(groups), moreTab)
+	tabs := ui.TabsBase(c.Key("tabs"), &a.tab, len(names))
+	tabs.List.Gap(4).Label("Option groups")
+	tabs.List.Children(func() {
+		for i, name := range names {
+			on := i == a.tab
+			tab := tabs.Tab(i).Padding(10, 14).Gap(8).Margin(0, 0, -1, 0)
+			tab.BorderWidth(0, 0, 2, 0).BorderColor(ternary(on, pal.accent, ui.Transparent))
+			tab.Children(func() {
+				display(ui.Text(c, name), 16).TextColor(ternary(on, pal.text, pal.muted))
+				if n := used[name]; n > 0 {
+					ui.Box(c).Padding(0, 7).Radius(99).Background(pal.accent).Children(func() {
+						mono(ui.Text(c, fmt.Sprint(n)), 11).TextColor(pal.onAccent)
+					}).Tooltip(fmt.Sprintf("%d option(s) set in %s", n, name))
+				}
+			})
+		}
+	})
+	ui.Divider(c)
+}
+
+const moreTab = "More"
+
+// group builds the options of one catalog group: switches in two columns, wider controls full width.
 func (a *App) group(c *ui.Context, name string) {
-	t := c.Theme()
-	ui.Column(c.Key("g-" + name)).Gap(2).Children(func() {
-		ui.Text(c, name).Bold().FontSize(14).TextColor(t.TextMuted).Margin(0, 0, 4, 0)
-		ui.Divider(c)
-		as, _ := a.store.Assignment(a.cur.AppID)
-		over := as.Overridden()
+	as, _ := a.store.Assignment(a.cur.AppID)
+	over := as.Overridden()
+	ui.Grid(c.Key("g-" + name)).Columns(2).Gap(10).Children(func() {
 		for i := range a.cat.Options {
 			o := &a.cat.Options[i]
 			if o.Group == name {
@@ -192,16 +399,17 @@ func (a *App) group(c *ui.Context, name string) {
 	})
 }
 
-// optionRow is one option: label with its tooltip, and the control for its kind.
+// optionRow is one option as a card: its label with the tooltip, and the control for its kind.
 func (a *App) optionRow(c *ui.Context, o *catalog.Option, overridden bool) {
-	t := c.Theme()
 	reason := a.cat.Reason(a.sel, a.tools, o.ID)
 	_, on := a.sel.Values[o.ID]
-	indent := float32(0)
-	if o.Host != "" {
-		indent = 16
+	off := reason != "" && !on
+	card := ui.Row(c.Key(o.ID)).Gap(12).Padding(0, 14).Height(48).Radius(12).
+		Background(ternary(on, pal.cardOn, pal.card)).Border(1, ternary(on, pal.accentDim, pal.line))
+	if o.Kind != catalog.Bool {
+		card.ColumnSpan(2)
 	}
-	ui.Row(c.Key(o.ID)).Gap(12).Padding(5, 4).Children(func() {
+	card.Children(func() {
 		tip := o.Help
 		if o.Support != "" {
 			tip += "\n\n" + o.Support
@@ -209,30 +417,33 @@ func (a *App) optionRow(c *ui.Context, o *catalog.Option, overridden bool) {
 		if reason != "" {
 			tip += "\n\n" + reason
 		}
-		ui.Row(c).Gap(6).Grow(1).Margin(0, 0, 0, indent).Tooltip(tip).Children(func() {
-			label := ui.Text(c, o.Label)
-			if reason != "" && !on {
-				label.TextColor(t.TextMuted)
-			}
+		ui.Row(c).Gap(8).Grow(1).Margin(0, 0, 0, ternary[float32](o.Host != "", 14, 0)).Tooltip(tip).Children(func() {
+			ui.Text(c, o.Label).TextColor(ternary(off, pal.faint, pal.text))
 			if overridden {
-				ui.Text(c, "•").TextColor(t.Accent).Tooltip("This game overrides its preset here.")
+				ui.Text(c, "•").TextColor(pal.accent).Tooltip("This game overrides its preset here.")
 			}
-			ui.Text(c, "ⓘ").TextColor(t.TextMuted).FontSize(12)
+			icon(c, icons.info, 15, pal.faint)
 		})
-		a.control(c, o, reason != "" && !on)
+		a.control(c, o, off, on)
 	})
 }
 
 // control is the widget for the option's kind; changing it goes through setOption, which
 // switches on what the option requires and tells the user.
-func (a *App) control(c *ui.Context, o *catalog.Option, disabled bool) {
+func (a *App) control(c *ui.Context, o *catalog.Option, disabled, _ bool) {
 	cur, on := a.sel.Values[o.ID]
 	switch o.Kind {
 	case catalog.Bool:
 		v := on
-		if ui.Switch(c.Key("c-"+o.ID), &v).Label(o.Label).Disabled(disabled).Changed() {
-			a.setOption(o.ID, boolValue(v))
+		glow := ui.Box(c.Key("glow-" + o.ID)).Radius(99)
+		if on {
+			glow.Shadow(0, 0, 12, 0, pal.accentGlow)
 		}
+		glow.Children(func() {
+			if ui.Switch(c.Key("c-"+o.ID), &v).Label(o.Label).Disabled(disabled).Changed() {
+				a.setOption(o.ID, boolValue(v))
+			}
+		})
 	case catalog.Select:
 		labels := []string{"Not set"}
 		byLabel := map[string]string{"Not set": ""}
@@ -284,11 +495,8 @@ func boolValue(on bool) string {
 
 // extras shows the pieces of an imported line the catalog does not know, as chips.
 func (a *App) extras(c *ui.Context) {
-	t := c.Theme()
 	ui.Column(c.Key("extras")).Gap(6).Children(func() {
-		ui.Text(c, "Everything else").Bold().FontSize(14).TextColor(t.TextMuted).Margin(0, 0, 4, 0)
-		ui.Divider(c)
-		ui.Text(c, "Anything slom does not have a control for stays here, exactly as it was, and is kept in the command. Add your own too.").TextColor(t.TextMuted).FontSize(12)
+		ui.Text(c, "Anything slom does not have a control for stays here, exactly as it was, and is kept in the command. Add your own too.").TextColor(pal.muted).FontSize(12.5)
 		a.chipEditor(c, "env", "Before the game: variables", "Environment variables such as FOO=1, placed first in the command.",
 			a.sel.CustomEnv, false, func(t []string) { a.sel.CustomEnv = t })
 		a.chipEditor(c, "wrap", "Before the game: commands", "Other programs that wrap the game, such as taskset -c 0-3.",
@@ -312,32 +520,103 @@ func (a *App) extras(c *ui.Context) {
 	})
 }
 
-// ---- bottom: preview and actions ----
+// ---- bottom: the command and the actions ----
 
-func (a *App) footer(c *ui.Context) {
-	t := c.Theme()
-	ui.Column(c).Gap(8).Children(func() {
-		ui.Text(c, "Launch options").Bold().FontSize(13).TextColor(t.TextMuted)
-		pv := a.preview()
-		ui.TextArea(c.Key("preview"), &pv).ReadOnly(true).Font("monospace").Lines(2, 6).Label("Launch options preview")
-		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, "Copy").Tooltip("Copy the whole line, to paste into the game's Launch Options in Steam.").Clicked() {
-				a.copyLine()
+// dock shows the whole command, what Steam has now, and the actions. It is green-edged while
+// there is something to apply.
+func (a *App) dock(c *ui.Context) {
+	line := a.line()
+	steamLine := a.steamLines[a.cur.AppID]
+	differs := line != steamLine
+	ui.Column(c).Radius(14).Background(pal.panel).Border(1, ternary(differs, pal.accentDim, pal.line)).
+		Shadow(0, -10, 30, 0, ui.RGBA(0, 0, 0, 0.4)).Padding(12, 14, 14).Gap(10).Children(func() {
+		ui.Row(c).Gap(10).Children(func() {
+			display(ui.Text(c, "LAUNCH COMMAND"), 13).TextColor(pal.muted)
+			pill(c, "live preview", pal.cyanDim, pal.cyan)
+		})
+		a.commandBox(c, a.preview())
+		ui.Row(c).Gap(10).Children(func() {
+			if differs {
+				pill(c, "not saved yet", ui.Hex("#3A2A0B"), pal.amber)
+			} else {
+				pill(c, "matches Steam", pal.cyanDim, pal.cyan)
 			}
-			ui.Button(c, "Edit as text…").Tooltip("Type or paste a full launch line; slom reads what it recognizes.").OnClick(a.openRaw)
-			ui.Button(c, "Import from Steam").Tooltip("Replace these settings with what Steam currently has for this game.").
-				Disabled(a.steamLines[a.cur.AppID] == "").OnClick(a.importFromSteam)
-			ui.Spacer(c)
-			if a.busy != "" {
-				ui.Text(c, a.busy).TextColor(t.TextMuted)
+			cur := "no launch options"
+			if steamLine != "" {
+				cur = steamLine
 			}
-			switch {
-			case a.steamRunning:
-				ui.PrimaryButton(c, "Apply").Disabled(true).Tooltip("Steam is running. Close it first, or use “Close Steam, apply, reopen” above.")
-			default:
-				ui.PrimaryButton(c, "Apply").Disabled(a.busy != "").Tooltip("Write these launch options into Steam's configuration. A backup is made first.").OnClick(a.apply)
+			ui.Row(c).Gap(6).Grow(1).Children(func() {
+				ui.Text(c, "Steam currently has:").FontSize(12.5).TextColor(pal.muted)
+				mono(ui.Text(c, cur), 12).TextColor(pal.text).SingleLine().Grow(1)
+			})
+			for _, n := range a.notes {
+				ui.Text(c, n).TextColor(pal.muted).FontSize(12.5)
 			}
 		})
+		ui.Row(c).Gap(6).Children(func() {
+			if ghost(c, "Copy", "Copy the whole line, to paste into the game's Launch Options in Steam.", false) {
+				a.copyLine()
+			}
+			if ghost(c, "Edit as text…", "Type or paste a full launch line; slom reads what it recognizes.", false) {
+				a.openRaw()
+			}
+			if ghost(c, "Re-import from Steam", "Replace these settings with what Steam currently has for this game.", steamLine == "") {
+				a.importFromSteam()
+			}
+			ui.Spacer(c)
+			if a.busy != "" {
+				ui.Text(c, a.busy).TextColor(pal.muted)
+			}
+			if a.steamRunning {
+				ui.Text(c, "Steam is running. Force apply will try to close it, apply, and reopen it.").
+					FontSize(12.5).TextColor(pal.amberText).Margin(0, 6, 0, 0)
+				if bigButton(c, "Force apply", pal.amber, pal.amberGlow, true, a.busy != "",
+					"Close Steam, write these launch options, and open Steam again. Anything open in Steam, including games, will be closed. You are asked to confirm first.") {
+					a.closingSteam = true
+				}
+			} else {
+				ui.Text(c, "A backup is made first. The last 10 are kept.").FontSize(12.5).TextColor(pal.muted).Margin(0, 6, 0, 0)
+				if bigButton(c, "Apply", pal.accent, pal.accentGlow, false, a.busy != "",
+					"Write these launch options into Steam's configuration. A backup is made first.") {
+					a.apply()
+				}
+			}
+		})
+	})
+}
+
+var envRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
+
+// commandBox draws the line with its parts in colors: variables cyan, programs amber,
+// %command% green. It reads like one line of text and wraps like one.
+func (a *App) commandBox(c *ui.Context, line string) {
+	ui.Row(c).Wrap().Gap(8).Background(pal.code).Border(1, pal.line).Radius(10).Padding(10, 12).Label("Launch options preview: " + line).Children(func() {
+		afterGame, wantProgram := false, true
+		for i, tk := range parse.Tokenize(line) {
+			v := tk.Raw
+			key := fmt.Sprint("tok-", i)
+			switch {
+			case v == render.Command:
+				mono(ui.Text(c.Key(key), v), 12.5).TextColor(pal.accent)
+				afterGame = true
+			case afterGame:
+				mono(ui.Text(c.Key(key), v), 12.5)
+			case envRe.MatchString(v):
+				name, val, _ := strings.Cut(v, "=")
+				mono(ui.RichText(c.Key(key),
+					ui.Span{Text: name + "=", Color: pal.cyan},
+					ui.Span{Text: val, Color: pal.text}), 12.5)
+			case v == "--":
+				mono(ui.Text(c.Key(key), v), 12.5).TextColor(pal.muted)
+				wantProgram = true
+				continue
+			case wantProgram:
+				mono(ui.Text(c.Key(key), v), 12.5).TextColor(pal.amber)
+			default:
+				mono(ui.Text(c.Key(key), v), 12.5)
+			}
+			wantProgram = false
+		}
 	})
 }
 
@@ -347,7 +626,7 @@ func (a *App) dialogs(c *ui.Context) {
 	ui.Modal(c, &a.rawOpen, func() {
 		ui.Column(c).Width(560).Gap(10).Children(func() {
 			ui.Text(c, "Edit launch options as text").Bold()
-			ui.Text(c, "Recognized parts become controls; the rest stays under “Everything else”.").TextColor(c.Theme().TextMuted)
+			ui.Text(c, "Recognized parts become controls; the rest stays under “More”.").TextColor(c.Theme().TextMuted)
 			ui.TextArea(c, &a.raw).Font("monospace").Lines(4, 10).AutoFocus().Label("Launch options")
 			ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
 				ui.Button(c, "Cancel").OnClick(func() { a.rawOpen = false })
@@ -372,29 +651,11 @@ func (a *App) dialogs(c *ui.Context) {
 		"Games that use it keep their current settings.", "Cancel", "Delete") == 1 {
 		a.deletePreset()
 	}
-	if ui.AlertDialog(c, &a.closingSteam, "Close Steam and apply?",
-		"Steam will be closed, the launch options written, and Steam opened again. Anything running in Steam, including games, will be closed.",
-		"Cancel", "Close Steam and apply") == 1 {
+	if ui.AlertDialog(c, &a.closingSteam, "Force apply?",
+		"Steam will be closed, the launch options saved, and Steam opened again. Anything running in Steam, including games, will be closed.",
+		"Cancel", "Force apply") == 1 {
 		a.closeSteamAndApply()
 	}
-}
-
-// tabLabels names each group's tab, with a dot where the game sets something in it.
-func (a *App) tabLabels(groups []string) []string {
-	used := map[string]bool{}
-	for id := range a.sel.Values {
-		if o := a.cat.Get(id); o != nil {
-			used[o.Group] = true
-		}
-	}
-	out := make([]string, len(groups))
-	for i, g := range groups {
-		out[i] = g
-		if used[g] {
-			out[i] += " •"
-		}
-	}
-	return out
 }
 
 // chipEditor edits a list of verbatim tokens as chips: one chip per command or flag with its
