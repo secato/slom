@@ -81,8 +81,14 @@ indicator), Gamescope (sizes, refresh, window and input, scaling, HDR, frame lim
 - Design reference: the Claude design canvas https://claude.ai/artifact/7rR968RT4KVTKFx8Ndzpdz
   (the first design; the app has since moved on, this file wins).
 
+## Distribution
+GitHub Actions run the tests on every push and pull request, and build Linux binaries (amd64,
+arm64, `CGO_ENABLED=0`) for a release when a `v*` tag is pushed. `install.sh` installs a release
+into `~/.local` (binary, desktop entry, icon) after checking its checksum. Details in
+`docs/RELEASING.md`. Packaging beyond that (deb, rpm, Flatpak, AUR) is not planned.
+
 ## Ideas not built
 Windows; Proton version selection (`CompatToolMapping`); uninstalled games; packaging beyond
-`go build`; a progress state while Steam restarts; arrow-key navigation in the game list; a legend
+the release binaries and `install.sh`; a progress state while Steam restarts; arrow-key navigation in the game list; a legend
 for the sidebar dots (amber pending, cyan has options in Steam); suggestions in the More fields
 (slom does not invent variables).

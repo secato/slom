@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Formatting
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Build, including the e2e variant
+        run: |
+          go build ./...
+          go build -tags e2e ./...
+      - name: Build the binary
+        run: CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}-${GITHUB_SHA::7}" -o slom ./cmd/slom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slom-linux-amd64
+          path: slom
+          retention-days: 14

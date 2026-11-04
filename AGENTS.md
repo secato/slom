@@ -6,6 +6,7 @@ Read first: `docs/SPEC.md` (decisions already made, with the reasons) and `docs/
 - the window (`internal/ui`): `docs/MYGO.md`, the MyGo patterns, the look, and test gotchas.
 - an option, group or variable name: `docs/CATALOG.md`, where each name was verified and how to add one.
 - running or writing tests, or anything that touches the real Steam: `docs/TESTING.md`.
+- CI, releases, `install.sh` or the desktop entry: `docs/RELEASING.md`.
 
 ## Rules
 - Go 1.27, module `github.com/secato/slom`; the binary is `slom` (`go build ./cmd/slom`). Verify with `go build ./... && go vet ./... && go test ./...`.

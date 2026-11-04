@@ -10,8 +10,11 @@ internal/store      presets and per-game assignments (JSON under the XDG config 
 internal/ui         MyGo screens, the only package allowed to import MyGo: app.go (state, actions), view.go (window,
                     sidebar, header, tabs, dock, dialogs), cards.go (option cards, More example), theme.go (palette,
                     fonts, icons), assets/ (fonts with licenses, SVG icons)
-docs/               SPEC, ARCHITECTURE, CATALOG, MYGO, TESTING, screenshot.png (generated)
+docs/               SPEC, ARCHITECTURE, CATALOG, MYGO, TESTING, RELEASING, screenshot.png (generated)
 scripts/            e2e.py (drives the real window)
+packaging/          slom.svg, the application icon (shipped with each release)
+install.sh          Linux installer: release download, checksum, binary, desktop entry, icon
+.github/workflows/  ci.yml (tests on push and PR), release.yml (binaries on a v* tag)
 ```
 
 ## Data flow

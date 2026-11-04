@@ -3,7 +3,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -12,7 +14,14 @@ import (
 	slomui "github.com/secato/slom/internal/ui"
 )
 
+// version is set at build time (-ldflags "-X main.version=v1.2.3"); "dev" for a plain go build.
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		fmt.Println("slom", version)
+		return
+	}
 	dir, err := store.DefaultDir()
 	if err != nil {
 		log.Fatal(err)
