@@ -529,11 +529,11 @@ func (a *App) extras(c *ui.Context) {
 	ui.Column(c.Key("extras")).Gap(14).Children(func() {
 		a.intro(c, moreTab, nil)
 		a.placeExample(c)
-		a.chipEditor(c, "env", "Before the game: variables", "Environment variables such as FOO=1, placed first in the command.",
+		a.chipEditor(c, "env", "Env variables", "Environment variables such as FOO=1, placed first in the command, before the game starts.",
 			a.sel.CustomEnv, false, func(t []string) { a.sel.CustomEnv = t })
-		a.chipEditor(c, "wrap", "Before the game: commands", "Other programs that wrap the game, such as taskset -c 0-3.",
+		a.chipEditor(c, "wrap", "Commands", "Other programs that wrap the game, such as taskset -c 0-3, placed before %command%.",
 			a.sel.CustomWrap, true, func(t []string) { a.sel.CustomWrap = t })
-		a.chipEditor(c, "args", "After the game: arguments", "Arguments passed to the game itself, after %command%, such as -windowed or -novid.",
+		a.chipEditor(c, "args", "Arguments", "Arguments passed to the game itself, after %command%, such as -windowed or -novid.",
 			a.sel.CustomArgs, true, func(t []string) { a.sel.CustomArgs = t })
 		for _, w := range a.cat.Options {
 			if w.Slot != catalog.SlotWrapper || len(a.sel.ExtraArgs[w.ID]) == 0 {
@@ -574,14 +574,7 @@ func (a *App) dock(c *ui.Context) {
 				dockRow(c, "PREVIEW", "The line slom will write into the game's Launch Options in Steam.", func() {
 					a.commandBox(c, "preview", a.preview(), "Launch options preview: ")
 				})
-				dockRow(c, "CURRENT ON STEAM", "The launch options Steam has for this game right now.", func() {
-					if steamLine == "" {
-						mono(ui.Text(c, "no launch options"), 12.5).TextColor(pal.faint).Margin(10, 0, 0, 12)
-						return
-					}
-					a.commandBox(c, "steam", steamLine, "Launch options on Steam: ")
-				})
-				dockRow(c, "DIFFERENCE", "What applying changes in Steam. Green is added, red is removed. A piece that only moved is not a change. Apply with the bolt button in the list on the left.", func() {
+				dockRow(c, "DIFFERENCE", "What applying changes compared with the launch options Steam has now. Green is added, red is removed. A piece that only moved is not a change. Apply with the bolt button in the list on the left.", func() {
 					added, removed := parse.Diff(steamLine, a.line())
 					ui.Row(c.Key("diff")).Wrap().Gap(6).Padding(6, 0, 0).Children(func() {
 						if len(added)+len(removed) == 0 {

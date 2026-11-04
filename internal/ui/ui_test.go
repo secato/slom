@@ -204,7 +204,7 @@ func TestChipsGroupAndNeverSplitOnCommas(t *testing.T) {
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	openTab(a, tt, "More")
-	if !tt.HasText("Before the game: commands") {
+	if !tt.HasText("Commands") {
 		t.Fatalf("extras not shown: %q", tt.Texts())
 	}
 	// the wrapper tokens are one chip, and so is each flag with its value
@@ -215,7 +215,7 @@ func TestChipsGroupAndNeverSplitOnCommas(t *testing.T) {
 		t.Fatalf("args chips %q", got)
 	}
 	// adding an env chip with commas keeps it as one token
-	if err := tt.Click("Add to Before the game: variables"); err != nil {
+	if err := tt.Click("Add to Env variables"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Type("WINEDLLOVERRIDES=dxgi=n,b")
@@ -519,7 +519,7 @@ func TestDockShowsPreviewSteamAndDifference(t *testing.T) {
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2")
 	tt.Frame()
-	for _, want := range []string{"PREVIEW", "CURRENT ON STEAM", "DIFFERENCE", "no difference", "matches Steam"} {
+	for _, want := range []string{"PREVIEW", "DIFFERENCE", "no difference", "matches Steam"} {
 		if !tt.HasText(want) {
 			t.Errorf("dock lacks %q", want)
 		}
@@ -536,7 +536,7 @@ func TestDockShowsPreviewSteamAndDifference(t *testing.T) {
 			t.Errorf("the difference does not show %q: %q", want, tt.Texts())
 		}
 	}
-	for _, gone := range []string{"Nothing to apply: this matches Steam.", "live preview"} {
+	for _, gone := range []string{"Nothing to apply: this matches Steam.", "live preview", "CURRENT ON STEAM", "Steam currently has:"} {
 		if tt.HasText(gone) {
 			t.Errorf("useless wording is back: %q", gone)
 		}
@@ -579,7 +579,7 @@ func TestMoreTabShowsWhereTheFieldsLand(t *testing.T) {
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	openTab(a, tt, "More")
-	for _, want := range []string{"WHERE THEY GO", "VARIABLES", "COMMANDS", "ARGUMENTS", "MY_VAR=1", "taskset -c 0-3", "-windowed"} {
+	for _, want := range []string{"WHERE THEY GO", "ENV VARIABLES", "COMMANDS", "ARGUMENTS", "MY_VAR=1", "taskset -c 0-3", "-windowed"} {
 		if !tt.HasText(want) {
 			t.Errorf("example lacks %q", want)
 		}

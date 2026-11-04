@@ -83,6 +83,9 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 ## Sidebar categories and More example (2026-11-04)
 - `App.gameSummary` lists categories; `HasProtonPrefix` is no longer shown anywhere. Tester gotcha: category names now appear in the sidebar too, so tests open tabs with `openTab` instead of clicking the text.
 
+## Dock and More naming (2026-11-04)
+- The dock no longer shows "current on Steam": only PREVIEW and DIFFERENCE. More fields renamed to Env variables / Commands / Arguments.
+
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.
 - Multiple Steam accounts are covered by `TestSwitchingSteamAccount` (fixtures), not by a real second account.

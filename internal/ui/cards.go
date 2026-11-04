@@ -301,7 +301,7 @@ func (a *App) placeExample(c *ui.Context) {
 		{"MY_VAR=1", "env"}, {"gamescope -W 1920 -H 1080 --", ""}, {"taskset -c 0-3", "wrap"},
 		{"%command%", "game"}, {"-windowed", "args"},
 	}
-	caption := map[string]string{"env": "variables", "wrap": "commands", "args": "arguments"}
+	caption := map[string]string{"env": "env variables", "wrap": "commands", "args": "arguments"}
 	ui.Column(c.Key("example")).Gap(8).Padding(12, 16).Radius(12).Background(pal.card).Border(1, pal.line).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
 			display(ui.Text(c, "WHERE THEY GO"), 12).TextColor(pal.muted)
