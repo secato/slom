@@ -550,8 +550,8 @@ func (a *App) extras(c *ui.Context) {
 
 // ---- bottom: the command and the actions ----
 
-// dock shows the whole command, what Steam has now, and the actions. It is green-edged while
-// there is something to apply.
+// dock shows the command that will be written, the one Steam has now, and the difference,
+// with the actions on the line. It is green-edged while there is something to apply.
 func (a *App) dock(c *ui.Context) {
 	steamLine := a.steamLines[a.cur.AppID]
 	differs := a.differs()
@@ -559,26 +559,39 @@ func (a *App) dock(c *ui.Context) {
 		Shadow(0, -10, 30, 0, ui.RGBA(0, 0, 0, 0.4)).Padding(12, 14, 14).Gap(10).Children(func() {
 		ui.Row(c).Gap(10).Children(func() {
 			display(ui.Text(c, "LAUNCH COMMAND"), 13).TextColor(pal.muted)
-			pill(c, "live preview", pal.cyanDim, pal.cyan)
-		})
-		a.commandBox(c, a.preview())
-		ui.Row(c).Gap(10).Children(func() {
 			if differs {
 				pill(c, "not saved yet", ui.Hex("#3A2A0B"), pal.amber)
 			} else {
 				pill(c, "matches Steam", pal.cyanDim, pal.cyan)
 			}
-			cur := "no launch options"
-			if steamLine != "" {
-				cur = steamLine
-			}
-			ui.Row(c).Gap(6).Grow(1).Children(func() {
-				ui.Text(c, "Steam currently has:").FontSize(12.5).TextColor(pal.muted)
-				mono(ui.Text(c, cur), 12).TextColor(pal.text).SingleLine().Grow(1)
+		})
+		ui.Scroll(c.Key("dock-scroll")).MaxHeight(280).Children(func() {
+			ui.Column(c).Gap(10).Padding(0, 8, 0, 0).Children(func() {
+				dockRow(c, "PREVIEW", "The line slom will write into the game's Launch Options in Steam.", func() {
+					a.commandBox(c, "preview", a.preview(), "Launch options preview: ")
+				})
+				dockRow(c, "CURRENT ON STEAM", "The launch options Steam has for this game right now.", func() {
+					if steamLine == "" {
+						mono(ui.Text(c, "no launch options"), 12.5).TextColor(pal.faint).Margin(10, 0, 0, 12)
+						return
+					}
+					a.commandBox(c, "steam", steamLine, "Launch options on Steam: ")
+				})
+				dockRow(c, "DIFFERENCE", "What applying changes in Steam. Green is added, red is removed. A piece that only moved is not a change. Apply with the bolt button in the list on the left.", func() {
+					added, removed := parse.Diff(steamLine, a.line())
+					ui.Row(c.Key("diff")).Wrap().Gap(6).Padding(6, 0, 0).Children(func() {
+						if len(added)+len(removed) == 0 {
+							mono(ui.Text(c, "no difference"), 12.5).TextColor(pal.faint).Margin(4, 0, 0, 12)
+						}
+						for _, u := range removed {
+							diffChip(c, "−", u, pal.danger, pal.dangerDim, pal.dangerBorder)
+						}
+						for _, u := range added {
+							diffChip(c, "+", u, pal.accent, pal.cardOn, pal.accentDim)
+						}
+					})
+				})
 			})
-			for _, n := range a.notes {
-				ui.Text(c, n).TextColor(pal.muted).FontSize(12.5)
-			}
 		})
 		ui.Row(c).Gap(6).Children(func() {
 			if ghost(c, "Copy", "Copy the whole line, to paste into the game's Launch Options in Steam.", false) {
@@ -593,18 +606,27 @@ func (a *App) dock(c *ui.Context) {
 			if ghost(c, "Remove all options", "Empty every launch option of this game, including the extra arguments. It is a change like any other: apply it from the list on the left, or Discard changes to undo it.", a.sel.IsEmpty()) {
 				a.removeAll()
 			}
-			ui.Spacer(c)
-			switch {
-			case !differs:
-				ui.Text(c, "Nothing to apply: this matches Steam.").FontSize(12.5).TextColor(pal.muted)
-			case a.steamRunning:
-				ui.Text(c, "Apply it with the bolt button on the left. Steam is running, so that will close it and reopen it.").
-					FontSize(12.5).TextColor(pal.amberText)
-			default:
-				ui.Text(c, "Apply it with the bolt button on the left. A backup is made first; the last 10 are kept.").
-					FontSize(12.5).TextColor(pal.muted)
-			}
 		})
+	})
+}
+
+// dockRow is one labeled part of the dock: a caption with an info mark on the left, the content
+// on the right.
+func dockRow(c *ui.Context, label, tip string, content func()) {
+	ui.Row(c.Key("dock-" + label)).Gap(14).AlignItems(ui.Start).Children(func() {
+		ui.Row(c).Gap(6).Width(150).Padding(10, 0, 0).Tooltip(tip).Children(func() {
+			display(ui.Text(c, label), 12).TextColor(pal.muted)
+			icon(c, icons.info, 14, pal.faint)
+		})
+		ui.Column(c).Grow(1).MinWidth(0).Children(content)
+	})
+}
+
+// diffChip is one added or removed piece of the command.
+func diffChip(c *ui.Context, sign, unit string, fg, bg, border ui.Color) {
+	ui.Row(c).Gap(6).Padding(3, 9).Radius(7).Background(bg).Border(1, border).Children(func() {
+		mono(ui.Text(c, sign), 12.5).TextColor(fg)
+		mono(ui.Text(c, unit), 12.5).TextColor(fg)
 	})
 }
 
@@ -612,31 +634,31 @@ var envRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
 // commandBox draws the line with its parts in colors: variables cyan, programs amber,
 // %command% green. It reads like one line of text and wraps like one.
-func (a *App) commandBox(c *ui.Context, line string) {
-	ui.Row(c).Wrap().Gap(8).Background(pal.code).Border(1, pal.line).Radius(10).Padding(10, 12).Label("Launch options preview: " + line).Children(func() {
+func (a *App) commandBox(c *ui.Context, name, line, label string) {
+	ui.Row(c.Key("cmd-"+name)).Wrap().Gap(8).Background(pal.code).Border(1, pal.line).Radius(10).Padding(10, 12).Label(label + line).Children(func() {
 		afterGame, wantProgram := false, true
 		for i, tk := range parse.Tokenize(line) {
 			v := tk.Raw
 			key := fmt.Sprint("tok-", i)
 			switch {
 			case v == render.Command:
-				mono(ui.Text(c.Key(key), v), 12.5).TextColor(pal.accent)
+				mono(ui.Text(c.Key(key), v), 12).TextColor(pal.accent)
 				afterGame = true
 			case afterGame:
-				mono(ui.Text(c.Key(key), v), 12.5)
+				mono(ui.Text(c.Key(key), v), 12)
 			case envRe.MatchString(v):
 				name, val, _ := strings.Cut(v, "=")
 				mono(ui.RichText(c.Key(key),
 					ui.Span{Text: name + "=", Color: pal.cyan},
-					ui.Span{Text: val, Color: pal.text}), 12.5)
+					ui.Span{Text: val, Color: pal.text}), 12)
 			case v == "--":
-				mono(ui.Text(c.Key(key), v), 12.5).TextColor(pal.muted)
+				mono(ui.Text(c.Key(key), v), 12).TextColor(pal.muted)
 				wantProgram = true
 				continue
 			case wantProgram:
-				mono(ui.Text(c.Key(key), v), 12.5).TextColor(pal.amber)
+				mono(ui.Text(c.Key(key), v), 12).TextColor(pal.amber)
 			default:
-				mono(ui.Text(c.Key(key), v), 12.5)
+				mono(ui.Text(c.Key(key), v), 12)
 			}
 			wantProgram = false
 		}

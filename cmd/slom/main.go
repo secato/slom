@@ -30,7 +30,7 @@ func main() {
 		win := mygo.NewWindow(mygo.WindowOptions{
 			Title:     "slom — Steam launch options",
 			Width:     1180,
-			Height:    780,
+			Height:    860,
 			MinWidth:  820,
 			MinHeight: 560,
 			Content:   ui.View(app.View),

@@ -203,7 +203,7 @@ func (a *App) discardChanges() {
 	}
 	g := a.cur
 	a.selectGame(g)
-	a.notes = []string{"Changes discarded: back to what Steam has."}
+	a.notify("Changes discarded: back to what Steam has.")
 }
 
 // commit saves the editor's state as the game's assignment.
@@ -214,6 +214,14 @@ func (a *App) commit() {
 	as := store.Derive(a.cat, a.preset(a.presetID), a.sel)
 	if err := a.store.SetAssignment(a.cur.AppID, as); err != nil {
 		a.toast("Could not save: " + err.Error())
+	}
+}
+
+// notify tells the user what slom did on its own, such as turning a wrapper on.
+func (a *App) notify(notes ...string) {
+	a.notes = notes
+	for _, n := range notes {
+		a.toast(n)
 	}
 }
 
@@ -230,7 +238,7 @@ func (a *App) setOption(id, v string) {
 		a.toast(err.Error())
 		return
 	}
-	a.notes = notes
+	a.notify(notes...)
 	a.commit()
 }
 
@@ -285,7 +293,7 @@ func (a *App) pendingCount() int {
 func (a *App) choosePreset(id string) {
 	a.presetID = id
 	if id == "" {
-		a.notes = []string{"Preset removed; the game keeps its current settings."}
+		a.notify("Preset removed; the game keeps its current settings.")
 		a.commit()
 		return
 	}
@@ -297,7 +305,7 @@ func (a *App) choosePreset(id string) {
 	a.sel = store.Effective(a.cat, p, store.Assignment{PresetID: id, Custom: catalog.Selection{
 		CustomEnv: custom.CustomEnv, CustomWrap: custom.CustomWrap, CustomArgs: custom.CustomArgs, ExtraArgs: custom.ExtraArgs,
 	}})
-	a.notes = []string{"Preset applied; this game's own overrides were cleared."}
+	a.notify("Preset applied; this game's own overrides were cleared.")
 	a.commit()
 }
 
@@ -357,7 +365,7 @@ func (a *App) openRaw() {
 
 func (a *App) applyRaw() {
 	a.sel = parse.Parse(a.cat, a.raw)
-	a.notes = []string{"Imported from the text you entered."}
+	a.notify("Imported from the text you entered.")
 	a.commit()
 }
 
@@ -475,7 +483,7 @@ func (a *App) removeAll() {
 	}
 	a.sel = parse.Parse(a.cat, "")
 	a.presetID = ""
-	a.notes = []string{"All options removed. Apply to save that to Steam, or Discard changes to undo."}
+	a.notify("All options removed. Apply to save that to Steam, or Discard changes to undo.")
 	a.commit()
 }
 

@@ -42,7 +42,7 @@ func testApp(t *testing.T) *App {
 
 func TestSelectGameImportsSteamLine(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	if err := tt.Click("Dota 2"); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestSelectGameImportsSteamLine(t *testing.T) {
 
 func TestToggleOptionUpdatesPreviewAndStore(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	// switching on an Int option takes its usual starting value and turns its wrapper on
 	a.tab = 2 // the Gamescope tab, so the announcement of the automatic change shows
@@ -81,7 +81,7 @@ func TestToggleOptionUpdatesPreviewAndStore(t *testing.T) {
 	if as, ok := a.store.Assignment("2"); !ok || as.Overrides["gs.refresh"] != "60" || as.Overrides["gamescope"] != "1" {
 		t.Fatalf("assignment %+v", as)
 	}
-	if !tt.HasText("Run inside gamescope turned on because Refresh rate needs it") {
+	if len(a.notes) != 1 || a.notes[0] != "Run inside gamescope turned on because Refresh rate needs it" {
 		t.Error("the automatic change was not announced")
 	}
 }
@@ -98,7 +98,7 @@ func TestLineIsEmptyForBareCommand(t *testing.T) {
 
 func TestPresetFlow(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2")
 	a.saveAsPreset("Native 1440p")
 	if a.presetID != "native-1440p" {
@@ -133,7 +133,7 @@ func TestPresetFlow(t *testing.T) {
 
 func TestPresetBarDoesNotRelinkGames(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2")
 	a.saveAsPreset("Alpha")
 	if err := a.store.SetAssignment("570", store.Assignment{PresetID: "alpha", Overrides: map[string]string{"gs.refresh": "60"}}); err != nil {
@@ -159,7 +159,7 @@ func TestMissingToolDisablesOption(t *testing.T) {
 	if r := a.cat.Reason(a.sel, a.tools, catalog.IDGameMode); !strings.Contains(r, "not installed") {
 		t.Fatalf("reason %q", r)
 	}
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	tt.Click("Other")
 	if !tt.HasText("Use GameMode") {
@@ -175,7 +175,7 @@ func TestScreenshot(t *testing.T) {
 	}
 	a := testApp(t)
 	a.tools = catalog.Tools{"gamescope": true, "mangohud": true, "gamemoderun": true}
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("ELDEN RING")
 	a.saveAsPreset("RTX sharp")
 	a.tab = 2 // Gamescope
@@ -203,7 +203,7 @@ func TestScreenshot(t *testing.T) {
 func TestChipsGroupAndNeverSplitOnCommas(t *testing.T) {
 	a := testApp(t)
 	a.steamLines["2"] = "FOO=bar taskset -c 0-3 %command% -a 'b c' -windowed"
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	if err := tt.Click("More"); err != nil {
 		t.Fatal(err)
@@ -267,7 +267,7 @@ func TestSwitchingSteamAccount(t *testing.T) {
 	if a.steamLines["1"] != "A=1 %command%" {
 		t.Fatalf("alice lines %v", a.steamLines)
 	}
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	if err := tt.Click("Alice"); err != nil { // the account select
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func twoPendingGames(t *testing.T) (*App, *ui.Tester) {
 		t.Fatal(err)
 	}
 	a.steamCheck = func() bool { return false }
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2")
 	a.setOption("gs.refresh", "60")
 	tt.Frame() // the list reorders
@@ -379,7 +379,7 @@ func TestForceApplyAsksBeforeClosingSteam(t *testing.T) {
 
 func TestRemoveAllOptionsIsAnIntentionalChange(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2") // Steam has a gamescope line
 	if err := tt.Click("Remove all options"); err != nil {
 		t.Fatal(err)
@@ -391,6 +391,8 @@ func TestRemoveAllOptionsIsAnIntentionalChange(t *testing.T) {
 	if !tt.HasText("Apply Dota 2") && !tt.HasText("Force apply Dota 2") {
 		t.Error("the game is not offered for apply")
 	}
+	tt.Move(5, 5)
+	tt.Advance(10 * time.Second) // the toast and the tooltip of the button just pressed cover the buttons until they are gone
 	if err := tt.Click("Discard changes"); err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +403,7 @@ func TestRemoveAllOptionsIsAnIntentionalChange(t *testing.T) {
 
 func TestPendingGamesAreGroupedInTheSidebar(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	if tt.HasText("PENDING APPLY · 1") {
 		t.Fatal("nothing is configured yet")
 	}
@@ -427,7 +429,7 @@ func TestPendingGamesAreGroupedInTheSidebar(t *testing.T) {
 // game must not stay pending after it was read from Steam.
 func TestSameLineInAnotherOrderIsNotPending(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2") // Steam has "--force-grab-cursor -W 2560 ..." and slom renders another order
 	a.commit()
 	if a.pending("570") {
@@ -440,7 +442,7 @@ func TestSameLineInAnotherOrderIsNotPending(t *testing.T) {
 
 func TestDiscardChangesGoesBackToSteam(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Dota 2")
 	a.saveAsPreset("Mine")
 	a.setOption("gs.refresh", "60")
@@ -468,7 +470,7 @@ func TestDiscardChangesGoesBackToSteam(t *testing.T) {
 
 func TestResolutionPillsSetWidthAndHeightTogether(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	tt.Click("Gamescope")
 	if err := tt.Click("1920×1080"); err != nil {
@@ -503,7 +505,7 @@ func TestSlidersSnapToUsualValuesAndKeepCustomOnes(t *testing.T) {
 
 func TestNoScreenIsAssumed(t *testing.T) {
 	a := testApp(t)
-	tt := ui.NewTester(a.View, 1180, 780)
+	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
 	tt.Click("Gamescope")
 	for _, s := range tt.Texts() {
@@ -513,5 +515,34 @@ func TestNoScreenIsAssumed(t *testing.T) {
 	}
 	if got := a.cat.Initial(a.cat.Get("gs.out_w")) + "x" + a.cat.Initial(a.cat.Get("gs.out_h")); got != "1920x1080" {
 		t.Errorf("sizes start at %s, not a standard value", got)
+	}
+}
+
+func TestDockShowsPreviewSteamAndDifference(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 860)
+	tt.Click("Dota 2")
+	tt.Frame()
+	for _, want := range []string{"PREVIEW", "CURRENT ON STEAM", "DIFFERENCE", "no difference", "matches Steam"} {
+		if !tt.HasText(want) {
+			t.Errorf("dock lacks %q", want)
+		}
+	}
+	a.setOption("gs.refresh", "90")
+	a.setOption("gs.borderless", "1")
+	tt.Frame()
+	added, removed := parse.Diff(a.steamLines["570"], a.line())
+	if !slices.Equal(added, []string{"-r 90", "-b"}) || !slices.Equal(removed, []string{"-r 180"}) {
+		t.Fatalf("added %q removed %q", added, removed)
+	}
+	for _, want := range []string{"-r 90", "-b", "-r 180", "not saved yet"} {
+		if !tt.HasText(want) {
+			t.Errorf("the difference does not show %q: %q", want, tt.Texts())
+		}
+	}
+	for _, gone := range []string{"Nothing to apply: this matches Steam.", "live preview"} {
+		if tt.HasText(gone) {
+			t.Errorf("useless wording is back: %q", gone)
+		}
 	}
 }

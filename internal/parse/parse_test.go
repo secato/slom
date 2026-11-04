@@ -2,6 +2,7 @@ package parse
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -188,5 +189,25 @@ func TestGroupAndUngroup(t *testing.T) {
 	// an edited chip may hold several tokens, quoted values and commas survive, and empty chips vanish
 	if got := Ungroup([]string{"A=1 B=2", "WINEDLLOVERRIDES=dxgi=n,b", "", "  "}); !reflect.DeepEqual(got, []string{"A=1", "B=2", "WINEDLLOVERRIDES=dxgi=n,b"}) {
 		t.Errorf("Ungroup = %q", got)
+	}
+}
+
+func TestUnitsAndDiff(t *testing.T) {
+	line := "A=1 gamescope -W 2560 -H 1440 -r 180 --force-grab-cursor -- mangohud %command% -windowed"
+	got := Units(line)
+	want := []string{"A=1", "gamescope", "-W 2560", "-H 1440", "-r 180", "--force-grab-cursor", "--", "mangohud", "%command%", "-windowed"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("units %q, want %q", got, want)
+	}
+	added, removed := Diff("A=1 gamescope -r 180 -- %command%", "gamescope -r 90 -F fsr -- %command%")
+	if !slices.Equal(added, []string{"-r 90", "-F fsr"}) || !slices.Equal(removed, []string{"A=1", "-r 180"}) {
+		t.Errorf("added %q removed %q", added, removed)
+	}
+	// the same pieces in another order are not a change
+	if a, r := Diff("-b -r 60", "-r 60 -b"); len(a)+len(r) != 0 {
+		t.Errorf("reordering counted as a change: %q %q", a, r)
+	}
+	if a, r := Diff("", ""); len(a)+len(r) != 0 {
+		t.Error("two empty lines differ")
 	}
 }
