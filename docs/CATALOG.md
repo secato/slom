@@ -33,3 +33,4 @@ Add one `Option` to `Default()`. Give it Label, Help, Support, Group. The UI, pr
 
 ## Groups, sections and summaries
 `internal/catalog/groups.go` holds, for the UI only (no rendering effect): `groupSummaries` (text of each tab's intro, also a "More" entry), `sections` (heading of each option inside its tab; a group has sections for all its options or for none, the master switch excepted), `sectionOrder` (explicit order where the catalog's is not the one to read in), and `Master(group)` (the wrapper the group's other options are flags of). A test checks every group has a summary and that sectioning is consistent.
+`stops` and `units` in the same file give Int options their usual values (a slider snaps to them, the UI adds the screen refresh rate where the option defaults to it) and display units. A test checks that stops are ascending and inside `[Min, Max]` and that every Int option has stops except the four size options, which use pills.

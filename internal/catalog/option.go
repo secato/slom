@@ -43,6 +43,7 @@ type Choice struct {
 type Option struct {
 	ID      string // stable identifier, used in stored presets
 	Group   string // tab in the UI
+	Stops   []int  // usual values of an Int option, for a slider that snaps to them (set from stops in groups.go)
 	Section string // heading inside the group, "" when the group has none (set from sections in groups.go)
 	Label   string // short human name
 	Help    string // tooltip text: what it does and when to use it

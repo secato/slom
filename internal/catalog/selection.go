@@ -65,6 +65,10 @@ func New(opts []Option) *Catalog {
 			o.Platform = "linux"
 		}
 		o.Section = sections[o.ID]
+		o.Stops = stops[o.ID]
+		if o.Unit == "" {
+			o.Unit = units[o.ID]
+		}
 		if _, dup := c.byID[o.ID]; dup {
 			panic("catalog: duplicate option id " + o.ID)
 		}

@@ -35,6 +35,18 @@ var sections = map[string]string{
 	"mh.fps_limit": "Limits",
 }
 
+// stops are the usual values of a number: a slider snaps to them, and the user can still type
+// any other value in range. The rate options also get the screen's own refresh rate.
+var stops = map[string][]int{
+	"gs.refresh":   {30, 60, 90, 120, 144, 180, 240},
+	"gs.fps_limit": {30, 60, 90, 120, 144, 180, 240},
+	"mh.fps_limit": {30, 60, 90, 120, 144, 180, 240},
+	"gs.sharpness": {0, 5, 10, 15, 20},
+	"mh.font_size": {16, 20, 24, 32, 40, 48},
+}
+
+var units = map[string]string{"gs.refresh": "Hz", "gs.fps_limit": "fps", "mh.font_size": "px"}
+
 // sectionOrder fixes the order of the headings where the catalog's own order is not the one to
 // read in; a group without an entry keeps the order its options appear in.
 var sectionOrder = map[string][]string{

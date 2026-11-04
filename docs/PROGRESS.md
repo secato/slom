@@ -65,6 +65,10 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 - The header wash and the sidebar tile share the game's hue (`gameHue`, `washColor`, `tileColors` in `theme.go`).
 - `scripts/e2e.py` reads the line from the label of the command box. The Copy and Apply steps were not rerun after this pass (Steam was running); a read-only variant (select, tab, switches, preview) passed against the real window.
 
+## Usual values with free input (2026-11-04)
+- Numbers snap to usual values and still take any value: `Option.Stops` (table `stops` in `internal/catalog/groups.go`: rates 30, 60, 90, 120, 144, 180, 240; sharpness 0 to 20 by 5; font size 16 to 48) plus the screen's own refresh rate (`App.stopsOf`). The slider moves over the stops; the field next to it takes any value in the option's range, and the slider is dimmed while the value is not one of the stops. Units (`Hz`, `fps`, `px`) come from the `units` table.
+- Sizes already had pills plus a Custom pill. Choice lists (scaler, filter, HUD layout and position, DLSS preset) are closed sets by nature. The "More" chips have no suggestions on purpose: slom does not invent variables.
+
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.
 - Multiple Steam accounts are covered by `TestSwitchingSteamAccount` (fixtures), not by a real second account.

@@ -214,50 +214,87 @@ func (a *App) resolutionCard(c *ui.Context, wo, ho *catalog.Option) {
 
 // ---- numbers ----
 
-// sliderRange is the span of a slider: the option's own for small ranges, and 30 up to the
-// screen's refresh rate (at least 240) for rates.
-func (a *App) sliderRange(o *catalog.Option) (lo, hi float64) {
-	lo, hi = float64(o.Min), float64(o.Max)
-	if hi-lo > 200 {
-		lo = math.Max(lo, 30)
-		hi = math.Max(240, math.Ceil(float64(a.defaults["screen.refresh"])/30)*30)
+// stopsOf are the values a slider snaps to: the option's usual ones, and the screen's own
+// refresh rate where the option defaults to it.
+func (a *App) stopsOf(o *catalog.Option) []int {
+	out := slices.Clone(o.Stops)
+	if o.DefaultFrom == "screen.refresh" {
+		if r := a.defaults["screen.refresh"]; r >= o.Min && r > 0 && !slices.Contains(out, r) {
+			out = append(out, r)
+		}
 	}
-	return lo, hi
+	slices.Sort(out)
+	return out
 }
 
-// sliderCard sets a number with a slider. Until it is touched the option is not set.
+// nearest is the index of the stop closest to v.
+func nearest(stops []int, v int) int {
+	best := 0
+	for i, s := range stops {
+		if abs(s-v) < abs(stops[best]-v) {
+			best = i
+		}
+	}
+	return best
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// sliderCard sets a number: a slider that snaps to the usual values, and a field for any
+// other value in range. Until it is touched the option is not set.
 func (a *App) sliderCard(c *ui.Context, o *catalog.Option, overridden bool) {
 	cur, on := a.sel.Values[o.ID]
-	lo, hi := a.sliderRange(o)
-	v := atof(cur)
+	stops := a.stopsOf(o)
+	n := int(atof(cur))
 	if !on {
-		v = atof(a.cat.Initial(o, a.defaults))
+		n = int(atof(a.cat.Initial(o, a.defaults)))
 	}
-	v = math.Min(math.Max(v, lo), hi)
-	value := "Not set"
-	if on {
-		value = itoa(int(v)) + ternary(o.Unit != "", " "+o.Unit, "")
-	}
+	idx := float64(nearest(stops, n))
+	exact := slices.Contains(stops, n)
 	tip := o.Help
 	if o.Support != "" {
 		tip += "\n\n" + o.Support
 	}
 	card(c, o.ID, on, 1).Children(func() {
-		cardHead(c, o.Label+ternary(overridden, " •", ""), tip, value, on)
-		sl := ui.Slider(c.Key("sl-"+o.ID), &v, lo, hi).Label(o.Label)
-		if !on {
-			sl.Opacity(0.4) // untouched: the thumb shows the default, nothing is set
-		}
-		if sl.Changed() {
-			a.setOption(o.ID, itoa(int(math.Round(v))))
-		}
-		ui.Row(c).Justify(ui.SpaceBetween).Children(func() {
-			for i := 0; i <= 4; i++ {
-				mono(ui.Text(c, itoa(int(math.Round(lo+(hi-lo)*float64(i)/4)))), 12).TextColor(pal.faint)
+		ui.Row(c).Gap(8).Children(func() {
+			ui.Row(c).Gap(8).Grow(1).Tooltip(tip).Children(func() {
+				ui.Text(c, o.Label+ternary(overridden, " •", ""))
+				icon(c, icons.info, 15, pal.faint)
+			})
+			if !on {
+				ui.Text(c, "Not set").TextColor(pal.faint)
+			}
+			typed := float64(n)
+			field := ui.NumberInput(c.Key("n-"+o.ID), &typed, float64(o.Min), float64(o.Max), 1).Label(o.Label + ", any value").Width(96)
+			if !on {
+				field.Opacity(0.4)
+			}
+			if field.Changed() {
+				a.setOption(o.ID, itoa(int(typed)))
+			}
+			if o.Unit != "" {
+				ui.Text(c, o.Unit).TextColor(pal.muted).Margin(0, 0, 0, 52) // the stepper buttons sit beside the field, outside its width
+			}
+			if on && ghost(c, "Clear", "Stop setting this option.", false) {
+				a.setOption(o.ID, "")
 			}
 		})
-		if on && ghost(c, "Clear", "Stop setting this option.", false) {
-			a.setOption(o.ID, "")
+		sl := ui.Slider(c.Key("sl-"+o.ID), &idx, 0, float64(len(stops)-1)).Step(1).Label(o.Label)
+		if !on || !exact {
+			sl.Opacity(0.4) // nothing set, or a value of your own between the usual ones
 		}
+		if sl.Changed() {
+			a.setOption(o.ID, itoa(stops[int(math.Round(idx))]))
+		}
+		ui.Row(c).Justify(ui.SpaceBetween).Children(func() {
+			for i, s := range stops {
+				mono(ui.Text(c, itoa(s)), 12).TextColor(ternary(on && exact && i == int(idx), pal.accent, pal.faint))
+			}
+		})
 	})
 }

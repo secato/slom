@@ -161,3 +161,28 @@ func TestGroupsAreDescribedAndSectionedConsistently(t *testing.T) {
 		t.Error("only host groups have a master switch")
 	}
 }
+
+func TestStopsAreUsualValuesInRange(t *testing.T) {
+	c := Default()
+	for id := range stops {
+		o := c.Get(id)
+		if o == nil || o.Kind != Int {
+			t.Errorf("stops for %q, which is not an Int option", id)
+			continue
+		}
+		for i, v := range o.Stops {
+			if v < o.Min || v > o.Max {
+				t.Errorf("%s: stop %d is outside [%d, %d]", id, v, o.Min, o.Max)
+			}
+			if i > 0 && v <= o.Stops[i-1] {
+				t.Errorf("%s: stops are not ascending: %v", id, o.Stops)
+			}
+		}
+	}
+	for _, o := range c.Options {
+		sizes := o.ID == "gs.out_w" || o.ID == "gs.out_h" || o.ID == "gs.in_w" || o.ID == "gs.in_h" // chosen with size pills
+		if o.Kind == Int && len(o.Stops) == 0 && !sizes {
+			t.Errorf("%s: an Int option without usual values", o.ID)
+		}
+	}
+}

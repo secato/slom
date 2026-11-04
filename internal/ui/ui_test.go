@@ -392,3 +392,25 @@ func TestResolutionPillsSetWidthAndHeightTogether(t *testing.T) {
 		t.Error("choosing a size should switch gamescope on")
 	}
 }
+
+func TestSlidersSnapToUsualValuesAndAddTheScreensRate(t *testing.T) {
+	a := testApp(t) // the screen refreshes at 165 Hz
+	o := a.cat.Get("gs.refresh")
+	got := a.stopsOf(o)
+	want := []int{30, 60, 90, 120, 144, 165, 180, 240}
+	if !slices.Equal(got, want) {
+		t.Fatalf("stops %v, want %v", got, want)
+	}
+	if i := nearest(got, 100); got[i] != 90 && got[i] != 120 {
+		t.Errorf("100 Hz snaps to %d", got[i])
+	}
+	if i := nearest(got, 143); got[i] != 144 {
+		t.Errorf("143 Hz snaps to %d", got[i])
+	}
+	// a value of your own is kept as typed, not rounded to a stop
+	a.cur = &a.games[2]
+	a.setOption("gs.refresh", "100")
+	if a.sel.Values["gs.refresh"] != "100" {
+		t.Errorf("custom value lost: %q", a.sel.Values["gs.refresh"])
+	}
+}
