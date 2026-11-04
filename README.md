@@ -31,5 +31,5 @@ slom backs up `localconfig.vdf` before every change.
 - **Imports** what is already in Steam; anything it doesn't know is kept as-is.
 - **Copy** the line instead, if you'd rather paste it into Steam yourself.
 
-Built with [MyGo](https://github.com/egoist/mygo). Working on it with an AI agent? Start at
+MIT licensed: copy it, change it, do what you like. Built with [MyGo](https://github.com/egoist/mygo). Working on it with an AI agent? Start at
 [AGENTS.md](AGENTS.md).
