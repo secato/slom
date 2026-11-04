@@ -71,6 +71,7 @@ type palette struct {
 	cyan, cyanDim, cyanBorder                          ui.Color
 	code                                               ui.Color
 	danger, dangerDim, dangerBorder                    ui.Color
+	violet, violetDim, violetBorder                    ui.Color
 }
 
 var pal = palette{
@@ -81,6 +82,7 @@ var pal = palette{
 	amber: ui.Hex("#FFB454"), amberDim: ui.Hex("#2A1D07"), amberBorder: ui.Hex("#6B4A12"), amberText: ui.Hex("#FFD9A0"), amberGlow: ui.RGBA(255, 180, 84, 0.35),
 	cyan: ui.Hex("#3DD9FF"), cyanDim: ui.Hex("#102A33"), cyanBorder: ui.Hex("#1B4452"),
 	code:   ui.Hex("#080A0F"),
+	violet: ui.Hex("#B79BFF"), violetDim: ui.Hex("#1E1733"), violetBorder: ui.Hex("#4A3A7A"),
 	danger: ui.Hex("#FF7A7A"), dangerDim: ui.Hex("#2A1114"), dangerBorder: ui.Hex("#5C2329"),
 }
 

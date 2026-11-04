@@ -277,3 +277,63 @@ func (a *App) sliderCard(c *ui.Context, o *catalog.Option, overridden bool) {
 		})
 	})
 }
+
+// ---- the More tab: where the fields land ----
+
+// slotColor is the color of each field of the More tab, used in the example line too.
+func slotColor(id string) (ui.Color, bool) {
+	switch id {
+	case "env":
+		return pal.cyan, true
+	case "wrap":
+		return pal.amber, true
+	case "args":
+		return pal.violet, true
+	}
+	return ui.Color{}, false
+}
+
+// placeExample draws an invented command line with the places of the three fields lit up, so
+// it is clear where what is typed below ends up.
+func (a *App) placeExample(c *ui.Context) {
+	type part struct{ text, slot string }
+	parts := []part{
+		{"MY_VAR=1", "env"}, {"gamescope -W 1920 -H 1080 --", ""}, {"taskset -c 0-3", "wrap"},
+		{"%command%", "game"}, {"-windowed", "args"},
+	}
+	caption := map[string]string{"env": "variables", "wrap": "commands", "args": "arguments"}
+	ui.Column(c.Key("example")).Gap(8).Padding(12, 16).Radius(12).Background(pal.card).Border(1, pal.line).Children(func() {
+		ui.Row(c).Gap(8).Children(func() {
+			display(ui.Text(c, "WHERE THEY GO"), 12).TextColor(pal.muted)
+			ui.Text(c, "An invented line, only to show the places.").FontSize(12.5).TextColor(pal.faint)
+		})
+		ui.Row(c).Wrap().Gap(10).AlignItems(ui.End).Children(func() {
+			for i, p := range parts {
+				col, lit := slotColor(p.slot)
+				ui.Column(c.Key(fmt.Sprint("ex-", i))).Gap(4).Children(func() {
+					if lit {
+						display(ui.Text(c, strings.ToUpper(caption[p.slot])), 11).TextColor(col)
+					} else {
+						ui.Text(c, " ").FontSize(11)
+					}
+					box := ui.Row(c).Padding(4, 9).Radius(7)
+					switch {
+					case lit:
+						dim, border := pal.cyanDim, pal.cyanBorder
+						if p.slot == "wrap" {
+							dim, border = pal.amberDim, pal.amberBorder
+						} else if p.slot == "args" {
+							dim, border = pal.violetDim, pal.violetBorder
+						}
+						box.Background(dim).Border(1, border)
+					case p.slot == "game":
+						box.Background(pal.cardOn).Border(1, pal.accentDim)
+					}
+					box.Children(func() {
+						mono(ui.Text(c, p.text), 12.5).TextColor(ternary(lit, col, ternary(p.slot == "game", pal.accent, pal.faint)))
+					})
+				})
+			}
+		})
+	})
+}

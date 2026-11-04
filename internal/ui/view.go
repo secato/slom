@@ -251,31 +251,38 @@ func (a *App) applyAll(c *ui.Context, pend []*steam.Game) {
 	}
 }
 
-// gameSummary is "Proton · 2 options": how the game runs and how much is set.
+// gameSummary lists the groups the game sets something in: "DLSS, Gamescope". Where the game
+// runs (native or Proton) is not shown: the Proton prefix says only that the game ran through
+// Proton once, not how it runs now.
 func (a *App) gameSummary(g *steam.Game) string {
-	runs := "Native"
-	if g.HasProtonPrefix {
-		runs = "Proton"
-	}
-	n := a.optionCount(g.AppID)
-	switch n {
-	case 0:
-		if a.steamLines[g.AppID] != "" {
-			return runs + " · custom args"
+	sel := a.selectionOf(g.AppID)
+	used := map[string]bool{}
+	for id := range sel.Values {
+		if o := a.cat.Get(id); o != nil {
+			used[o.Group] = true
 		}
-		return runs + " · none"
-	case 1:
-		return runs + " · 1 option"
 	}
-	return fmt.Sprintf("%s · %d options", runs, n)
+	var names []string
+	for _, grp := range a.cat.Groups() {
+		if used[grp] {
+			names = append(names, grp)
+		}
+	}
+	if len(sel.CustomEnv)+len(sel.CustomWrap)+len(sel.CustomArgs)+len(sel.ExtraArgs) > 0 {
+		names = append(names, moreTab)
+	}
+	if len(names) == 0 {
+		return "Nothing set"
+	}
+	return strings.Join(names, ", ")
 }
 
-// optionCount is how many catalog options the game's line sets.
-func (a *App) optionCount(appID string) int {
+// selectionOf is what the game's line is: slom's configuration if it has one, else Steam's line.
+func (a *App) selectionOf(appID string) catalog.Selection {
 	if as, ok := a.store.Assignment(appID); ok {
-		return len(store.Effective(a.cat, a.preset(as.PresetID), as).Values)
+		return store.Effective(a.cat, a.preset(as.PresetID), as)
 	}
-	return len(parse.Parse(a.cat, a.steamLines[appID]).Values)
+	return parse.Parse(a.cat, a.steamLines[appID])
 }
 
 func initials(name string) string {
@@ -338,16 +345,12 @@ func (a *App) editor(c *ui.Context) {
 // header is the game's name over a green-to-dark wash, with its facts and its preset.
 func (a *App) header(c *ui.Context, g *steam.Game) {
 	ui.Column(c).Padding(22, 32, 18).Gap(2).Gradient(washColor(g.Name), pal.ground, 110).Children(func() {
-		runs, tip := "NATIVE", "No Proton prefix was found for this game: it is probably a native Linux game, or has not run through Proton yet. Proton and DLSS options only apply to Windows games run through Proton."
-		if g.HasProtonPrefix {
-			runs, tip = "PROTON", "This game has a Proton prefix, so it runs through Proton."
-		}
-		meta := fmt.Sprintf("APP %s · %s", g.AppID, runs)
+		meta := "APP " + g.AppID
 		if g.LastPlayed > 0 {
 			meta += " · LAST PLAYED " + ago(time.Unix(g.LastPlayed, 0), time.Now())
 		}
 		ui.Row(c).Gap(16).Children(func() {
-			mono(ui.Text(c, meta), 12).TextColor(pal.muted).LetterSpacing(0.6).Tooltip(tip).Grow(1)
+			mono(ui.Text(c, meta), 12).TextColor(pal.muted).LetterSpacing(0.6).Grow(1)
 			a.presetBar(c)
 		})
 		display(ui.Text(c, strings.ToUpper(g.Name)), 40).SingleLine()
@@ -525,6 +528,7 @@ func boolValue(on bool) string {
 func (a *App) extras(c *ui.Context) {
 	ui.Column(c.Key("extras")).Gap(14).Children(func() {
 		a.intro(c, moreTab, nil)
+		a.placeExample(c)
 		a.chipEditor(c, "env", "Before the game: variables", "Environment variables such as FOO=1, placed first in the command.",
 			a.sel.CustomEnv, false, func(t []string) { a.sel.CustomEnv = t })
 		a.chipEditor(c, "wrap", "Before the game: commands", "Other programs that wrap the game, such as taskset -c 0-3.",
@@ -729,7 +733,12 @@ func (a *App) chipEditor(c *ui.Context, id, label, tip string, tokens []string, 
 		}
 	}
 	ui.Row(c.Key("x-" + id)).Gap(12).Children(func() {
-		ui.Text(c, label).Width(190).Tooltip(tip)
+		ui.Row(c).Gap(8).Width(200).Tooltip(tip).Children(func() {
+			if col, ok := slotColor(id); ok {
+				dot(c, col, false)
+			}
+			ui.Text(c, label)
+		})
 		ui.Column(c).Grow(1).Gap(4).Children(func() {
 			changed := false
 			for i := range st {

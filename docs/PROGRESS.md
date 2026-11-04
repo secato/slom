@@ -80,6 +80,9 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 ## Dock redesign (2026-11-04)
 - Dock = PREVIEW / CURRENT ON STEAM / DIFFERENCE (see SPEC). `parse.Units` and `parse.Diff` are tested. Notes about automatic changes became toasts (`App.notify`); in Tester tests a toast and the tooltip of the button just pressed cover the dock, so move the pointer away and `Advance` before the next click.
 
+## Sidebar categories and More example (2026-11-04)
+- `App.gameSummary` lists categories; `HasProtonPrefix` is no longer shown anywhere. Tester gotcha: category names now appear in the sidebar too, so tests open tabs with `openTab` instead of clicking the text.
+
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.
 - Multiple Steam accounts are covered by `TestSwitchingSteamAccount` (fixtures), not by a real second account.

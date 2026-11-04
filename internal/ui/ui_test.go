@@ -55,9 +55,7 @@ func TestSelectGameImportsSteamLine(t *testing.T) {
 	if !tt.HasText("Proton") || !tt.HasText("Write a Proton log") {
 		t.Error("the first group is not shown")
 	}
-	if err := tt.Click("Gamescope"); err != nil {
-		t.Fatal(err)
-	}
+	openTab(a, tt, "Gamescope")
 	if !tt.HasText("GAMESCOPE") || !tt.HasText("Output resolution") || !tt.HasText("Refresh rate") {
 		t.Error("gamescope options not shown after choosing its tab")
 	}
@@ -205,9 +203,7 @@ func TestChipsGroupAndNeverSplitOnCommas(t *testing.T) {
 	a.steamLines["2"] = "FOO=bar taskset -c 0-3 %command% -a 'b c' -windowed"
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
-	if err := tt.Click("More"); err != nil {
-		t.Fatal(err)
-	}
+	openTab(a, tt, "More")
 	if !tt.HasText("Before the game: commands") {
 		t.Fatalf("extras not shown: %q", tt.Texts())
 	}
@@ -411,7 +407,7 @@ func TestPendingGamesAreGroupedInTheSidebar(t *testing.T) {
 	a.saveAsPreset("Native 1440p")
 	a.setOption("gs.refresh", "144") // now differs from the line Steam has
 	tt.Frame()
-	for _, want := range []string{"PENDING APPLY · 1", "OTHER GAMES · 2", "Native · none"} {
+	for _, want := range []string{"PENDING APPLY · 1", "OTHER GAMES · 2", "Nothing set"} {
 		if !tt.HasText(want) {
 			t.Errorf("sidebar lacks %q: %q", want, tt.Texts())
 		}
@@ -472,7 +468,7 @@ func TestResolutionPillsSetWidthAndHeightTogether(t *testing.T) {
 	a := testApp(t)
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
-	tt.Click("Gamescope")
+	openTab(a, tt, "Gamescope")
 	if err := tt.Click("1920×1080"); err != nil {
 		t.Fatal(err)
 	}
@@ -507,7 +503,7 @@ func TestNoScreenIsAssumed(t *testing.T) {
 	a := testApp(t)
 	tt := ui.NewTester(a.View, 1180, 860)
 	tt.Click("Native Thing")
-	tt.Click("Gamescope")
+	openTab(a, tt, "Gamescope")
 	for _, s := range tt.Texts() {
 		if strings.Contains(s, "Your screen") {
 			t.Errorf("the window guesses the screen: %q", s)
@@ -545,4 +541,58 @@ func TestDockShowsPreviewSteamAndDifference(t *testing.T) {
 			t.Errorf("useless wording is back: %q", gone)
 		}
 	}
+}
+
+func TestSidebarListsChangedCategoriesNotHowTheGameRuns(t *testing.T) {
+	a := testApp(t)
+	a.steamLines["2"] = "FOO=bar %command%"
+	tt := ui.NewTester(a.View, 1180, 860)
+	tt.Frame()
+	want := map[string]string{
+		"570":     "Gamescope",
+		"1245620": "DLSS, Gamescope",
+		"2":       "More",
+	}
+	// ELDEN RING's line has DLSS options only in the fixture; Dota 2's has gamescope only
+	want["1245620"] = "DLSS"
+	for id, w := range want {
+		var g *steam.Game
+		for i := range a.games {
+			if a.games[i].AppID == id {
+				g = &a.games[i]
+			}
+		}
+		if got := a.gameSummary(g); got != w {
+			t.Errorf("%s: %q, want %q", g.Name, got, w)
+		}
+	}
+	for _, s := range tt.Texts() {
+		if strings.Contains(s, "Proton ·") || strings.Contains(s, "Native ·") {
+			t.Errorf("the sidebar still says how the game runs: %q", s)
+		}
+	}
+	a.setOption("mh.frametime", "1") // cur is nil: nothing happens, no panic
+}
+
+func TestMoreTabShowsWhereTheFieldsLand(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 860)
+	tt.Click("Native Thing")
+	openTab(a, tt, "More")
+	for _, want := range []string{"WHERE THEY GO", "VARIABLES", "COMMANDS", "ARGUMENTS", "MY_VAR=1", "taskset -c 0-3", "-windowed"} {
+		if !tt.HasText(want) {
+			t.Errorf("example lacks %q", want)
+		}
+	}
+}
+
+// openTab shows a tab by name. Clicking its text is ambiguous: the sidebar lists the same
+// category names under the games.
+func openTab(a *App, tt *ui.Tester, name string) {
+	for i, g := range append(a.cat.Groups(), moreTab) {
+		if g == name {
+			a.tab = i
+		}
+	}
+	tt.Frame()
 }

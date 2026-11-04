@@ -54,3 +54,7 @@ Table-driven render/parse tests with a round-trip check (render -> parse -> rend
 
 ## The command dock
 Three labeled parts, each with an info tooltip: **PREVIEW** (what slom will write, colored), **CURRENT ON STEAM** (what Steam has, colored), **DIFFERENCE** (`parse.Diff`: units added in green, removed in red; a piece that only moved is not a change; "no difference" when equal). A pill by the title says "not saved yet" or "matches Steam". Below: Copy, Edit as text, Discard changes, Remove all options. No other wording: automatic changes ("Run inside gamescope turned on because…", "Preset applied…") are toasts (`App.notify`), not text in the dock. The three parts scroll inside a 280 px area; the default window is 1180×860.
+
+## Sidebar subtitle and the More tab
+- Under each game's name the sidebar lists the **categories it sets** ("DLSS, Gamescope"; "More" for pieces slom has no control for; "Nothing set"). It does not say Proton or Native: the Proton prefix only shows the game ran through Proton once, so it was wrong for native builds. The header no longer says it either.
+- The More tab shows an invented line with the places of the three fields lit up (variables cyan, commands amber, arguments violet, `%command%` green), and each field's label carries the same color dot (`slotColor`, `placeExample` in `cards.go`).
