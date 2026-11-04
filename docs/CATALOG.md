@@ -30,3 +30,6 @@ The catalog lives in `internal/catalog/data.go`. Every option has a label, a too
 
 ## Adding an option
 Add one `Option` to `Default()`. Give it Label, Help, Support, Group. The UI, preview, parser and tests pick it up; `TestDefaultCatalogIsWellFormed` checks the invariants.
+
+## Groups, sections and summaries
+`internal/catalog/groups.go` holds, for the UI only (no rendering effect): `groupSummaries` (text of each tab's intro, also a "More" entry), `sections` (heading of each option inside its tab; a group has sections for all its options or for none, the master switch excepted), `sectionOrder` (explicit order where the catalog's is not the one to read in), and `Master(group)` (the wrapper the group's other options are flags of). A test checks every group has a summary and that sectioning is consistent.

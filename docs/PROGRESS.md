@@ -58,6 +58,13 @@ All milestones are done and committed; `go build ./... && go vet ./... && go tes
 - Not built from the canvas (follow-ups): resolution preset pills and a refresh-rate slider (still number inputs), a progress state while Steam restarts, arrow-key navigation in the game list, a hover legend for the sidebar dots (amber = pending, cyan = has options in Steam).
 - Verified: unit/Tester tests, `docs/screenshot.png` regenerated, and a read-only launch of the real window (Steam running) against the real games. `scripts/e2e.py` was not rerun after the redesign because Steam was running (it writes the real file); rerun it with Steam closed.
 
+## Redesign, second pass (2026-11-04)
+- Every tab opens with an intro card (`catalog.Summary`) saying what the group is; Gamescope and MangoHud carry their master switch in it (`catalog.Master`). Options sit under small headings (`Option.Section`, set from the `sections` table in `internal/catalog/groups.go`, ordered by `sectionOrder`).
+- Option cards by kind (`internal/ui/cards.go`): switches in two columns, selects as cards, resolution as pills (your screen's size is included, plus a Custom pill with width and height fields) for output and game size, sliders for refresh rate, frame rate limits, sharpness and font size. A slider is dimmed until touched; "Clear" unsets it.
+- Pending fix: Steam's line is read and re-rendered before comparing (`App.steamNormalized`), so a line that only differs in order or spacing is no longer "pending" forever. **Discard changes** (dock) drops the game's assignment and preset link and goes back to what Steam has; it replaces "Re-import from Steam". It is disabled when nothing differs.
+- The header wash and the sidebar tile share the game's hue (`gameHue`, `washColor`, `tileColors` in `theme.go`).
+- `scripts/e2e.py` reads the line from the label of the command box. The Copy and Apply steps were not rerun after this pass (Steam was running); a read-only variant (select, tab, switches, preview) passed against the real window.
+
 ## Known limitations
 - Flatpak Steam is only covered by fixture tests (`FindInstalls`, `Command`): Flatpak Steam is not installed on the dev machine, so `flatpak run com.valvesoftware.Steam -shutdown` and its `/proc` detection were never run.
 - Multiple Steam accounts are covered by `TestSwitchingSteamAccount` (fixtures), not by a real second account.

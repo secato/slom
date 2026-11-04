@@ -42,7 +42,8 @@ type Choice struct {
 // Option is one setting. The zero Group/Support are allowed.
 type Option struct {
 	ID      string // stable identifier, used in stored presets
-	Group   string // section in the UI
+	Group   string // tab in the UI
+	Section string // heading inside the group, "" when the group has none (set from sections in groups.go)
 	Label   string // short human name
 	Help    string // tooltip text: what it does and when to use it
 	Support string // which Proton builds or hardware it works with; shown in the tooltip

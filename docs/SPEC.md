@@ -41,3 +41,9 @@ Windows, Proton version selection (`CompatToolMapping`), uninstalled games, pack
 
 ## Tests
 Table-driven render/parse tests with a round-trip check (render -> parse -> render is stable). `steam` package against fixture `.acf`/`.vdf` files. UI not unit-tested beyond MyGo's windowless view tests if cheap.
+
+## UX decisions added with the redesign
+- Pending = slom's line differs from Steam's line **after Steam's line is parsed and re-rendered** (order and spacing do not count).
+- **Discard changes** = forget slom's configuration for the game (and its preset link) and show what Steam has. There is no separate re-import.
+- Every tab starts with a short description of the group; hosts (gamescope, MangoHud) have their master switch there.
+- Resolution is chosen with pills (output and game size together), refresh rate and limits with sliders; the option IDs and the rendered flags are unchanged.

@@ -280,7 +280,7 @@ func (a *App) editor(c *ui.Context) {
 			groups := a.cat.Groups()
 			a.tabs(c, groups)
 			ui.Scroll(c).Grow(1).Children(func() {
-				ui.Column(c).Gap(10).Padding(0, 8, 0, 0).Children(func() {
+				ui.Column(c).Gap(10).Padding(0, 8, 0, 0).MaxWidth(1000).Children(func() {
 					if a.tab >= 0 && a.tab < len(groups) {
 						a.group(c, groups[a.tab])
 					} else {
@@ -295,7 +295,7 @@ func (a *App) editor(c *ui.Context) {
 
 // header is the game's name over a green-to-dark wash, with its facts and its preset.
 func (a *App) header(c *ui.Context, g *steam.Game) {
-	ui.Column(c).Padding(22, 32, 18).Gap(2).Gradient(ui.Hex("#16210A"), pal.ground, 110).Children(func() {
+	ui.Column(c).Padding(22, 32, 18).Gap(2).Gradient(washColor(g.Name), pal.ground, 110).Children(func() {
 		runs, tip := "NATIVE", "No Proton prefix was found for this game: it is probably a native Linux game, or has not run through Proton yet. Proton and DLSS options only apply to Windows games run through Proton."
 		if g.HasProtonPrefix {
 			runs, tip = "PROTON", "This game has a Proton prefix, so it runs through Proton."
@@ -385,20 +385,6 @@ func (a *App) tabs(c *ui.Context, groups []string) {
 
 const moreTab = "More"
 
-// group builds the options of one catalog group: switches in two columns, wider controls full width.
-func (a *App) group(c *ui.Context, name string) {
-	as, _ := a.store.Assignment(a.cur.AppID)
-	over := as.Overridden()
-	ui.Grid(c.Key("g-" + name)).Columns(2).Gap(10).Children(func() {
-		for i := range a.cat.Options {
-			o := &a.cat.Options[i]
-			if o.Group == name {
-				a.optionRow(c, o, over[o.ID] && a.presetID != "")
-			}
-		}
-	})
-}
-
 // optionRow is one option as a card: its label with the tooltip, and the control for its kind.
 func (a *App) optionRow(c *ui.Context, o *catalog.Option, overridden bool) {
 	reason := a.cat.Reason(a.sel, a.tools, o.ID)
@@ -406,7 +392,7 @@ func (a *App) optionRow(c *ui.Context, o *catalog.Option, overridden bool) {
 	off := reason != "" && !on
 	card := ui.Row(c.Key(o.ID)).Gap(12).Padding(0, 14).Height(48).Radius(12).
 		Background(ternary(on, pal.cardOn, pal.card)).Border(1, ternary(on, pal.accentDim, pal.line))
-	if o.Kind != catalog.Bool {
+	if o.Kind == catalog.Text {
 		card.ColumnSpan(2)
 	}
 	card.Children(func() {
@@ -495,8 +481,8 @@ func boolValue(on bool) string {
 
 // extras shows the pieces of an imported line the catalog does not know, as chips.
 func (a *App) extras(c *ui.Context) {
-	ui.Column(c.Key("extras")).Gap(6).Children(func() {
-		ui.Text(c, "Anything slom does not have a control for stays here, exactly as it was, and is kept in the command. Add your own too.").TextColor(pal.muted).FontSize(12.5)
+	ui.Column(c.Key("extras")).Gap(14).Children(func() {
+		a.intro(c, moreTab, nil)
 		a.chipEditor(c, "env", "Before the game: variables", "Environment variables such as FOO=1, placed first in the command.",
 			a.sel.CustomEnv, false, func(t []string) { a.sel.CustomEnv = t })
 		a.chipEditor(c, "wrap", "Before the game: commands", "Other programs that wrap the game, such as taskset -c 0-3.",
@@ -525,9 +511,8 @@ func (a *App) extras(c *ui.Context) {
 // dock shows the whole command, what Steam has now, and the actions. It is green-edged while
 // there is something to apply.
 func (a *App) dock(c *ui.Context) {
-	line := a.line()
 	steamLine := a.steamLines[a.cur.AppID]
-	differs := line != steamLine
+	differs := a.differs()
 	ui.Column(c).Radius(14).Background(pal.panel).Border(1, ternary(differs, pal.accentDim, pal.line)).
 		Shadow(0, -10, 30, 0, ui.RGBA(0, 0, 0, 0.4)).Padding(12, 14, 14).Gap(10).Children(func() {
 		ui.Row(c).Gap(10).Children(func() {
@@ -560,16 +545,16 @@ func (a *App) dock(c *ui.Context) {
 			if ghost(c, "Edit as text…", "Type or paste a full launch line; slom reads what it recognizes.", false) {
 				a.openRaw()
 			}
-			if ghost(c, "Re-import from Steam", "Replace these settings with what Steam currently has for this game.", steamLine == "") {
-				a.importFromSteam()
+			if ghost(c, "Discard changes", "Drop what is set here, and the preset link, and go back to what Steam has for this game.", !differs) {
+				a.discardChanges()
 			}
 			ui.Spacer(c)
 			if a.busy != "" {
 				ui.Text(c, a.busy).TextColor(pal.muted)
 			}
 			if a.steamRunning {
-				ui.Text(c, "Steam is running. Force apply will try to close it, apply, and reopen it.").
-					FontSize(12.5).TextColor(pal.amberText).Margin(0, 6, 0, 0)
+				ui.Text(c, "Steam is running. Force apply will try to close it, apply and reopen it.").
+					FontSize(12).TextColor(pal.amberText)
 				if bigButton(c, "Force apply", pal.amber, pal.amberGlow, true, a.busy != "",
 					"Close Steam, write these launch options, and open Steam again. Anything open in Steam, including games, will be closed. You are asked to confirm first.") {
 					a.closingSteam = true

@@ -100,10 +100,19 @@ func gamerTheme() *ui.Theme {
 	return t
 }
 
-// tileColors gives each game its own tile gradient, from its name, so the list is easy to scan.
-func tileColors(name string) (from, to ui.Color) {
+// washColor is the dark tint of a game's header: its tile's color, faded toward the window's.
+func washColor(name string) ui.Color {
+	return ui.Oklch(0.27, 0.07, gameHue(name))
+}
+
+func gameHue(name string) float32 {
 	h := fnv.New32a()
 	h.Write([]byte(name))
-	hue := float32(h.Sum32() % 360)
+	return float32(h.Sum32() % 360)
+}
+
+// tileColors gives each game its own tile gradient, from its name, so the list is easy to scan.
+func tileColors(name string) (from, to ui.Color) {
+	hue := gameHue(name)
 	return ui.Oklch(0.52, 0.13, hue), ui.Oklch(0.30, 0.09, hue)
 }

@@ -59,7 +59,7 @@ func TestSelectGameImportsSteamLine(t *testing.T) {
 	if err := tt.Click("Gamescope"); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("Run inside gamescope") || !tt.HasText("Output width") {
+	if !tt.HasText("GAMESCOPE") || !tt.HasText("Output resolution") || !tt.HasText("Refresh rate") {
 		t.Error("gamescope options not shown after choosing its tab")
 	}
 	// selecting a game must not create an assignment until the user edits
@@ -295,7 +295,7 @@ func TestForceApplyReplacesApplyWhileSteamRuns(t *testing.T) {
 	}
 	a.steamRunning = true
 	tt.Frame()
-	if tt.HasText("Steam is running. Force apply will try to close it, apply, and reopen it.") == false {
+	if tt.HasText("Steam is running. Force apply will try to close it, apply and reopen it.") == false {
 		t.Fatalf("no explanation next to Force apply: %q", tt.Texts())
 	}
 	if err := tt.Click("Force apply"); err != nil {
@@ -317,9 +317,10 @@ func TestPendingGamesAreGroupedInTheSidebar(t *testing.T) {
 		t.Fatal("nothing is configured yet")
 	}
 	tt.Click("Dota 2")
-	a.saveAsPreset("Native 1440p") // differs from the line Steam has
+	a.saveAsPreset("Native 1440p")
+	a.setOption("gs.refresh", "144") // now differs from the line Steam has
 	tt.Frame()
-	for _, want := range []string{"PENDING APPLY · 1", "OTHER GAMES · 2", "Proton · 5 options", "Native · none"} {
+	for _, want := range []string{"PENDING APPLY · 1", "OTHER GAMES · 2", "Native · none"} {
 		if !tt.HasText(want) {
 			t.Errorf("sidebar lacks %q: %q", want, tt.Texts())
 		}
@@ -330,5 +331,64 @@ func TestPendingGamesAreGroupedInTheSidebar(t *testing.T) {
 				t.Errorf("old wording %q is back: %q", bad, s)
 			}
 		}
+	}
+}
+
+// Steam's line may only differ from slom's in order or spacing; that is not a change, so a
+// game must not stay pending after it was read from Steam.
+func TestSameLineInAnotherOrderIsNotPending(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Dota 2") // Steam has "--force-grab-cursor -W 2560 ..." and slom renders another order
+	a.commit()
+	if a.pending("570") {
+		t.Fatalf("pending although nothing changed: slom %q, Steam %q", a.line(), a.steamLines["570"])
+	}
+	if a.differs() {
+		t.Error("the editor says it differs from Steam")
+	}
+}
+
+func TestDiscardChangesGoesBackToSteam(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Dota 2")
+	a.saveAsPreset("Mine")
+	a.setOption("gs.refresh", "60")
+	tt.Frame()
+	if !a.pending("570") || !tt.HasText("not saved yet") {
+		t.Fatal("an edit should be pending")
+	}
+	if err := tt.Click("Discard changes"); err != nil {
+		t.Fatal(err)
+	}
+	if a.pending("570") || a.presetID != "" {
+		t.Errorf("still pending or linked: pending=%v preset=%q", a.pending("570"), a.presetID)
+	}
+	if _, ok := a.store.Assignment("570"); ok {
+		t.Error("the assignment survived the discard")
+	}
+	if got := a.preview(); got != "gamescope -W 2560 -H 1440 -r 180 --force-grab-cursor -- %command%" {
+		t.Errorf("not back to Steam's line: %q", got)
+	}
+	tt.Frame()
+	if !tt.HasText("matches Steam") {
+		t.Error("the dock still says there are unsaved changes")
+	}
+}
+
+func TestResolutionPillsSetWidthAndHeightTogether(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 780)
+	tt.Click("Native Thing")
+	tt.Click("Gamescope")
+	if err := tt.Click("1920×1080"); err != nil {
+		t.Fatal(err)
+	}
+	if a.sel.Values["gs.out_w"] != "1920" || a.sel.Values["gs.out_h"] != "1080" {
+		t.Fatalf("pill did not set both: %v", a.sel.Values)
+	}
+	if _, on := a.sel.Values["gamescope"]; !on {
+		t.Error("choosing a size should switch gamescope on")
 	}
 }

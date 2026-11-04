@@ -53,6 +53,7 @@ type App struct {
 	tab       int                 // the option group shown
 	chips     map[string][]string // chip editor state, by game and field
 	chipDraft map[string]string   // the text typed into each "Add…" field
+	customRes map[string]bool     // resolution cards showing their width and height fields
 
 	// dialogs
 	rawOpen        bool
@@ -71,7 +72,7 @@ func New(st *store.Store, backups string) *App {
 	a := &App{
 		cat: catalog.Default(), store: st, backups: backups,
 		steamLines: map[string]string{}, sidebarSize: 300,
-		chips: map[string][]string{}, chipDraft: map[string]string{},
+		chips: map[string][]string{}, chipDraft: map[string]string{}, customRes: map[string]bool{},
 	}
 	a.tools = catalog.DetectTools(a.cat)
 	return a
@@ -190,12 +191,19 @@ func (a *App) selectGame(g *steam.Game) {
 	a.sel = parse.Parse(a.cat, a.steamLines[g.AppID])
 }
 
-// importFromSteam replaces the editor's state with what is in Steam now.
-func (a *App) importFromSteam() {
-	a.sel = parse.Parse(a.cat, a.steamLines[a.cur.AppID])
-	a.presetID = ""
-	a.notes = []string{"Imported from Steam."}
-	a.commit()
+// discardChanges drops what slom has for the game, including its preset link, and goes back
+// to what Steam has now.
+func (a *App) discardChanges() {
+	if a.cur == nil {
+		return
+	}
+	if err := a.store.ClearAssignment(a.cur.AppID); err != nil {
+		a.toast("Could not discard: " + err.Error())
+		return
+	}
+	g := a.cur
+	a.selectGame(g)
+	a.notes = []string{"Changes discarded: back to what Steam has."}
 }
 
 // commit saves the editor's state as the game's assignment.
@@ -243,6 +251,15 @@ func (a *App) lineOf(sel catalog.Selection) string {
 // preview is the line as shown to the user, always with %command%.
 func (a *App) preview() string { return render.Render(a.cat, a.sel, a.tools) }
 
+// steamNormalized is the line Steam has, read and written back the way slom writes it, so
+// that a line which only differs in order or spacing is not a change.
+func (a *App) steamNormalized(appID string) string {
+	return a.lineOf(parse.Parse(a.cat, a.steamLines[appID]))
+}
+
+// differs reports whether the editor's line is not what Steam has.
+func (a *App) differs() bool { return a.line() != a.steamNormalized(a.cur.AppID) }
+
 // pending reports whether a game's configured line differs from what Steam has.
 func (a *App) pending(appID string) bool {
 	as, ok := a.store.Assignment(appID)
@@ -250,7 +267,7 @@ func (a *App) pending(appID string) bool {
 		return false
 	}
 	p := a.preset(as.PresetID)
-	return a.lineOf(store.Effective(a.cat, p, as)) != a.steamLines[appID]
+	return a.lineOf(store.Effective(a.cat, p, as)) != a.steamNormalized(appID)
 }
 
 func (a *App) pendingCount() int {

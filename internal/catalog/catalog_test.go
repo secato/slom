@@ -135,3 +135,29 @@ func TestSelectionClone(t *testing.T) {
 		t.Fatal("clone shares state")
 	}
 }
+
+func TestGroupsAreDescribedAndSectionedConsistently(t *testing.T) {
+	c := Default()
+	for _, g := range c.Groups() {
+		if c.Summary(g) == "" {
+			t.Errorf("group %q has no summary", g)
+		}
+		secs := c.Sections(g)
+		if len(secs) > 1 {
+			for _, s := range secs {
+				if s == "" {
+					t.Errorf("group %q mixes sectioned and unsectioned options", g)
+				}
+			}
+		}
+	}
+	if m := c.Master("Gamescope"); m == nil || m.ID != IDGamescope {
+		t.Errorf("gamescope master: %+v", m)
+	}
+	if m := c.Master("MangoHud"); m == nil || m.ID != IDMangoHud {
+		t.Errorf("mangohud master: %+v", m)
+	}
+	if c.Master("Proton") != nil || c.Master("Other") != nil {
+		t.Error("only host groups have a master switch")
+	}
+}

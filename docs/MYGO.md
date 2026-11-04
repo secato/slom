@@ -32,3 +32,4 @@ newer than v0.7.4; when in doubt use `go doc github.com/egoist/mygo/ui <Symbol>`
 - Glow is `Shadow(0,0,blur,0,color)`; wrap the stock `Switch` in a `Box(...).Radius(99)` to give it one.
 - Tester gotcha: if a test changes the model directly (`a.saveAsPreset`), call `tt.Frame()` before `Click`, because rows may have moved (the sidebar groups pending games).
 - Game rows are `ButtonBase`s with `Clicked()`, not `ui.List`, because the list has section headers; they stay focusable and keyboard-activatable but have no arrow-key navigation.
+- Cards: `ui.Slider(c, &float64, lo, hi)` + `Opacity(0.4)` for "not set"; `Row(c).Wrap()` for pill rows; `Row(c).Justify(ui.SpaceBetween)` for tick labels; `ColumnSpan(2)` makes a card take the whole grid row. Hover/Clicked helpers in `view.go` (`ghost`, `bigButton`) and `cards.go` (`choice`) are the pattern for custom buttons. The command box labels itself "Launch options preview: <line>" for assistive tech and `scripts/e2e.py`.

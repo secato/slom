@@ -38,6 +38,12 @@ def call(method, **params):
     if "error" in r: raise RuntimeError(f"{method}: {r['error']}")
     return r["result"]
 def nodes(): return call("tree")["nodes"]
+def preview():
+    """The launch line, read from the label of the command box ("Launch options preview: <line>")."""
+    for x in nodes():
+        if x.get("label", "").startswith("Launch options preview"):
+            return x["label"].split(": ", 1)[1].strip()
+    raise RuntimeError("no launch options preview on screen")
 def find(label, role=None):
     for _ in range(50):
         for x in nodes():
@@ -61,14 +67,14 @@ try:
     call("idle")
     print("window:", call("windows")["windows"][0]["title"])
     press(game)
-    check(find("Launch options preview")["value"].strip() != "", "selecting a game shows its launch options preview")
+    check(preview() != "", "selecting a game shows its launch options preview")
     for x in nodes():  # the tab label may carry a dot
         if x["role"] in ("tab", "radio") and x.get("label", "").startswith("Gamescope"):
             call("act", id=x["id"], action="press"); call("idle"); break
     press("Run inside gamescope", "switch")
     press("Always capture the mouse", "switch")
-    preview = find("Launch options preview")["value"]
-    check(preview.startswith("gamescope --force-grab-cursor -- ") or "gamescope --force-grab-cursor --" in preview, f"switches change the preview: {preview!r}")
+    line = preview()
+    check("gamescope --force-grab-cursor --" in line, f"switches change the preview: {line!r}")
     # Copy -> clipboard
     press("Copy")
     time.sleep(0.5)
