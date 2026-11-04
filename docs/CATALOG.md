@@ -1,7 +1,7 @@
 # Catalog: sources and caveats
 
 The catalog lives in `internal/catalog/data.go`. Every option has a label, a tooltip
-(`Help`) and a `Support` note shown in the tooltip. Verified on 2026-11-03.
+(`Help`) and a `Support` note shown in the tooltip. Verified on 2026-11-03 against Proton 11.0.
 
 ## How each group was verified
 | Group | Verified against |
@@ -29,7 +29,7 @@ The catalog lives in `internal/catalog/data.go`. Every option has a label, a too
 - Missing tools: `Render` skips the option and everything hosted by it.
 
 ## Adding an option
-Add one `Option` to `Default()`. Give it Label, Help, Support, Group. The UI, preview, parser and tests pick it up; `TestDefaultCatalogIsWellFormed` checks the invariants.
+Add one `Option` to `Default()` only with a source for the variable or flag (see the table above, and "Left out on purpose"). Give it Label, Help, Support, Group; add it to `sections` (and `stops` for an Int) in `groups.go`. Int and Text options start from `Option.Default`, a fixed usual value: never derive it from the machine. The UI, preview, parser and tests pick it up; `TestDefaultCatalogIsWellFormed` checks the invariants.
 
 ## Groups, sections and summaries
 `internal/catalog/groups.go` holds, for the UI only (no rendering effect): `groupSummaries` (text of each tab's intro, also a "More" entry), `sections` (heading of each option inside its tab; a group has sections for all its options or for none, the master switch excepted), `sectionOrder` (explicit order where the catalog's is not the one to read in), and `Master(group)` (the wrapper the group's other options are flags of). A test checks every group has a summary and that sectioning is consistent.

@@ -1,23 +1,22 @@
-# slom — agent guide
+# slom: agent guide
 
-slom is a native Go desktop tool (MyGo `ui`, no webview, no cgo) that lists installed
-Steam games and builds their launch options (Proton env vars, DLSS, gamescope,
-MangoHud, gamemode) from labeled controls, then writes them into Steam's
-`localconfig.vdf`. Linux only for v1.
+slom is a native Go desktop tool (MyGo `ui`, no webview, no cgo) that lists installed Steam games and builds their launch options (Proton env vars, DLSS, gamescope, MangoHud, gamemode) from labeled controls, then writes them into Steam's `localconfig.vdf`. Linux only for v1.
 
-Read in this order:
-1. `docs/SPEC.md` — what we build and the decisions already made (do not re-litigate).
-2. `docs/ARCHITECTURE.md` — packages, data flow, key invariants.
-3. `docs/PROGRESS.md` — milestones, what is done, what is next, open risks.
-4. `docs/MYGO.md` — notes on the MyGo UI API as used here.
+Read first: `docs/SPEC.md` (decisions already made, with the reasons) and `docs/ARCHITECTURE.md` (packages, data flow, invariants). Then, when the work touches:
+- the window (`internal/ui`): `docs/MYGO.md`, the MyGo patterns, the look, and test gotchas.
+- an option, group or variable name: `docs/CATALOG.md`, where each name was verified and how to add one.
+- running or writing tests, or anything that touches the real Steam: `docs/TESTING.md`.
 
 ## Rules
-- Go 1.27, module `github.com/secato/slom`. Binary is `slom` (`go build ./cmd/slom`).
-- Everything below `internal/ui` must not import MyGo (keeps it testable and reusable).
-- Data-driven: options live in the catalog as data; the UI and the preview are generated from it. No per-option UI code. No hardcoded values that can be derived.
-- Never write `localconfig.vdf` while Steam runs. Always back up first, verify after, restore on failure.
-- Edit only the `LaunchOptions` value in `localconfig.vdf` (surgical text edit); never re-serialize the whole file.
-- Unrecognized tokens in an imported launch line are preserved in order, never dropped.
-- One commit per milestone. Commit author: Felipe Secato. Keep `docs/PROGRESS.md` current in the same commit.
-- Verify: `go build ./... && go vet ./... && go test ./...`.
-- Opt-in checks that touch the real machine (Steam must be closed unless noted): `SLOM_REAL_APPLY=<appid>` / `SLOM_REAL_CLOSE=<appid>` tests in `internal/steam/real_test.go`, `scripts/e2e.py` (real window), `scripts/spike-test-launch.sh`. They restore what they change; read `docs/PROGRESS.md` first.
+- Go 1.27, module `github.com/secato/slom`; the binary is `slom` (`go build ./cmd/slom`). Verify with `go build ./... && go vet ./... && go test ./...`.
+- `internal/ui` is the only package that imports MyGo; everything below it stays testable without a window.
+- Options are data in the catalog; the controls, preview and parser are generated from it. Add an option to `data.go` (with a source for its name) and its `sections` entry, not UI code.
+- Starting values are fixed usual ones (1920×1080, 60 Hz). Never read the screen, resolution or refresh rate from the machine: the owner has two monitors and detection reported the wrong one.
+- `localconfig.vdf`: write it only while Steam is closed, edit only the `LaunchOptions` value as a text splice, back up first, verify after, restore on failure. Imported tokens slom does not know stay, in order.
+- Never close, restart or write to the owner's real Steam to test something. Real-machine checks are opt-in (`docs/TESTING.md`) and need the owner's say-so.
+- The look is dark and "gamer"; colors are named by meaning in `internal/ui/theme.go` (`pal`): accent = will be applied, amber = Steam in the way, cyan = information, red/green = removed/added. Buttons and labels keep normal case, because tests and `scripts/e2e.py` find them by text.
+- A change to what the window looks like: regenerate `docs/screenshot.png` and look at it. A decision from the owner: write it in `docs/SPEC.md`, in the same commit.
+- Wording shown to the user is plain English, short, and says what will happen.
+
+## Commits
+One commit per logical change, message in the imperative with a short reason. The repo's git config already has the author (Felipe Secato, GitHub noreply email); keep it. Local only: do not push or create a remote unless asked.

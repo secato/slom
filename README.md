@@ -1,6 +1,6 @@
-# slom
+# Slom - Steam launch options manager
 
-Set Steam launch options without memorizing them.
+**Set Steam launch options without memorizing them.**
 
 Pick a game, flip switches for Proton, DLSS, gamescope, MangoHud and GameMode, and see the
 whole command line as you go. Hover any option for a plain-English explanation. slom writes
