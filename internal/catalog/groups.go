@@ -28,7 +28,7 @@ var sections = map[string]string{
 	"gs.in_h": "Resolution and refresh", "gs.refresh": "Resolution and refresh", "gs.fps_limit": "Resolution and refresh",
 	"gs.fullscreen": "Window and input", "gs.borderless": "Window and input", "gs.force_grab": "Window and input", "gs.grab": "Window and input",
 	"gs.scaler": "Scaling", "gs.filter": "Scaling", "gs.sharpness": "Scaling",
-	"gs.hdr": "Display", "gs.adaptive": "Display",
+	"gs.hdr": "Display", "gs.adaptive": "Display", "gs.backend": "Display",
 
 	"mh.preset": "Overlay", "mh.position": "Overlay", "mh.font_size": "Overlay", "mh.compact": "Overlay",
 	"mh.frametime": "Metrics", "mh.gpu_temp": "Metrics", "mh.cpu_temp": "Metrics", "mh.ram": "Metrics", "mh.vram": "Metrics",

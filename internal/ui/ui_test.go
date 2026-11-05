@@ -592,3 +592,27 @@ func openTab(a *App, tt *ui.Tester, name string) {
 	}
 	tt.Frame()
 }
+
+// A game saved before slom had a control for --backend keeps it as an extra; opening it must
+// hand it to the control without changing the line.
+func TestSavedExtraBecomesTheControlThatNowExists(t *testing.T) {
+	a := testApp(t)
+	as := store.Assignment{
+		Overrides: map[string]string{"gamescope": "1", "gs.refresh": "180"},
+		Custom:    catalog.Selection{ExtraArgs: map[string][]string{"gamescope": {"--backend", "sdl"}}},
+	}
+	if err := a.store.SetAssignment("2", as); err != nil {
+		t.Fatal(err)
+	}
+	a.selectGame(&a.games[2])
+	if a.sel.Values["gs.backend"] != "sdl" || len(a.sel.ExtraArgs["gamescope"]) != 0 {
+		t.Fatalf("not taken over: %+v", a.sel)
+	}
+	if got := a.preview(); got != "gamescope -r 180 --backend sdl -- %command%" {
+		t.Errorf("the line changed: %q", got)
+	}
+	saved, _ := a.store.Assignment("2")
+	if saved.Overrides["gs.backend"] != "sdl" || len(saved.Custom.ExtraArgs["gamescope"]) != 0 {
+		t.Errorf("not saved in the new shape: %+v", saved)
+	}
+}

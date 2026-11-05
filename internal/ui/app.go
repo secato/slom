@@ -3,6 +3,7 @@ package ui
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -184,10 +185,30 @@ func (a *App) selectGame(g *steam.Game) {
 			a.presetID = ""
 		}
 		a.sel = store.Effective(a.cat, a.preset(a.presetID), as)
+		if re := a.reclaim(a.sel); !reflect.DeepEqual(re, a.sel) {
+			a.sel = re
+			a.commit()
+		}
 		return
 	}
 	a.presetID = ""
 	a.sel = parse.Parse(a.cat, a.steamLines[g.AppID])
+}
+
+// reclaim reads the pieces kept as custom again: a game saved before slom had a control for
+// something (gamescope's --backend, say) keeps it as an extra, and now the control takes it over.
+// The line must come out the same, or the selection is left as it was.
+func (a *App) reclaim(sel catalog.Selection) catalog.Selection {
+	if len(sel.ExtraArgs)+len(sel.CustomEnv)+len(sel.CustomWrap)+len(sel.CustomArgs) == 0 {
+		return sel
+	}
+	tools := catalog.AllTools(a.cat)
+	line := render.Render(a.cat, sel, tools)
+	re := parse.Parse(a.cat, line)
+	if render.Render(a.cat, re, tools) != line {
+		return sel
+	}
+	return re
 }
 
 // discardChanges drops what slom has for the game, including its preset link, and goes back

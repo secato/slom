@@ -37,6 +37,7 @@ func Default() *Catalog {
 	scalers := []Choice{{"auto", "Auto"}, {"integer", "Integer (pixel-perfect)"}, {"fit", "Fit (keep aspect ratio)"}, {"fill", "Fill (crop to fill)"}, {"stretch", "Stretch"}}
 	filters := []Choice{{"linear", "Linear"}, {"nearest", "Nearest (sharp pixels)"}, {"fsr", "AMD FSR"}, {"nis", "NVIDIA NIS"}, {"pixel", "Pixel"}, {"sgsr", "Snapdragon SGSR"}}
 	positions := []Choice{{"top-left", "Top left"}, {"top-center", "Top center"}, {"top-right", "Top right"}, {"middle-left", "Middle left"}, {"middle-right", "Middle right"}, {"bottom-left", "Bottom left"}, {"bottom-center", "Bottom center"}, {"bottom-right", "Bottom right"}}
+	backends := []Choice{{"auto", "Auto (gamescope decides)"}, {"sdl", "SDL (a window on your desktop)"}, {"wayland", "Wayland (a window on your desktop)"}, {"drm", "DRM (own display session)"}, {"openvr", "OpenVR (VR overlay)"}, {"headless", "Headless (no window, no output)"}}
 	hudPresets := []Choice{{"0", "No HUD"}, {"1", "FPS only"}, {"2", "Horizontal"}, {"3", "Extended"}, {"4", "Detailed"}}
 
 	with := func(o Option, f func(*Option)) Option { f(&o); return o }
@@ -132,6 +133,7 @@ func Default() *Catalog {
 		gs("gs.hdr", "HDR output", "Turns on HDR output. Needs an HDR display and a game that supports HDR through gamescope's color layer.", "--hdr-enabled", Bool),
 		gsInt("gs.fps_limit", "Frame rate limit", "Caps the frame rate. Gamescope uses it as a divisor of the refresh rate, so values round to 1x, 1/2x, 1/3x... of it.", "--framerate-limit", 1, 1000),
 		gs("gs.adaptive", "Adaptive sync (VRR)", "Enables variable refresh rate (FreeSync/G-Sync) if the display supports it.", "--adaptive-sync", Bool),
+		gsSel("gs.backend", "Backend", "Which backend gamescope renders with. Auto is right for most games. Pick SDL or Wayland when gamescope cannot start or shows nothing inside your desktop session; DRM runs it as its own display session, for example from a TTY.", "--backend", backends),
 
 		// ---- MangoHud ----
 		{ID: IDMangoHud, Group: "MangoHud", Label: "Show the MangoHud overlay", Support: "Needs MangoHud.", Tool: "mangohud",

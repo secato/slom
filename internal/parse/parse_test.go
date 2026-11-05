@@ -37,6 +37,8 @@ var lines = []string{
 	"PROTON_LOG=0 PROTON_USE_WINED3D=1 %command%",
 	"MANGOHUD_CONFIG=fps_limit=60 %command%", // config without the wrapper: must survive
 	"gamescope -W 99999 -- %command%",        // out of range: kept as extra
+	"gamescope -W 2560 -H 1440 -r 180 --force-grab-cursor --backend sdl -- mangohud %command%",
+	"gamescope --backend nonsense -- %command%", // not a backend slom knows: kept as extra
 }
 
 func TestParseRealLines(t *testing.T) {
@@ -209,5 +211,23 @@ func TestUnitsAndDiff(t *testing.T) {
 	}
 	if a, r := Diff("", ""); len(a)+len(r) != 0 {
 		t.Error("two empty lines differ")
+	}
+}
+
+func TestGamescopeBackendIsAControl(t *testing.T) {
+	c := catalog.Default()
+	sel := Parse(c, "gamescope -W 2560 -H 1440 --force-grab-cursor --backend sdl -- mangohud %command%")
+	if sel.Values["gs.backend"] != "sdl" || sel.Values["gamescope"] != "1" {
+		t.Fatalf("backend not recognized: %+v", sel)
+	}
+	if len(sel.ExtraArgs["gamescope"]) != 0 {
+		t.Errorf("a known backend must not stay an extra: %q", sel.ExtraArgs)
+	}
+	if got := render.Render(c, sel, catalog.AllTools(c)); !strings.Contains(got, "--backend sdl --") {
+		t.Errorf("rendered %q", got)
+	}
+	odd := Parse(c, "gamescope --backend nonsense -- %command%")
+	if _, set := odd.Values["gs.backend"]; set || len(odd.ExtraArgs["gamescope"]) == 0 {
+		t.Errorf("an unknown backend must be kept as an extra: %+v", odd)
 	}
 }
