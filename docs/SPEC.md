@@ -51,7 +51,7 @@ indicator), Gamescope (sizes, refresh, window and input, scaling, HDR, frame lim
 - Data: plain JSON under `~/.config/slom/` (`presets.json`, `assignments.json`).
 
 ## UI decisions
-- **Look**: always dark, "gamer". One accent color means "this will be applied", amber means
+- **Look**: "gamer", and it follows the desktop: dark or light, and the desktop's accent (see **Theme following** below). One accent color means "this will be applied", amber means
   Steam is in the way, cyan is information, red/green mark removed/added. Titles in Rajdhani,
   commands in JetBrains Mono. Everything must be buildable from MyGo parts, no webview.
 - **Sidebar**: games with a tile in their own color. The subtitle lists the **categories the
@@ -92,3 +92,11 @@ Windows; Proton version selection (`CompatToolMapping`); uninstalled games; pack
 the release binaries and `install.sh`; a progress state while Steam restarts; arrow-key navigation in the game list; a legend
 for the sidebar dots (amber pending, cyan has options in Steam); suggestions in the More fields
 (slom does not invent variables).
+
+## Theme following
+Decided 2026-11-05 (replaces "always dark"). Rules, in order:
+- **Dark or light**: a Dark / Light / System toggle at the bottom of the sidebar (saved in `~/.config/slom/settings.json`, the only setting; System is the default). `SLOM_THEME=dark|light`, when set, overrides the toggle and locks it. Under System: Omarchy's active theme (`mode` in `~/.local/state/omarchy/current/theme/colors.toml`) > the system's appearance as MyGo reads it (GTK setting, then the desktop portal's `color-scheme`, then a GTK theme name with "dark"). MyGo answers light when the desktop says nothing at all, so a bare window manager gets the light look; choosing Dark fixes it.
+- **Accent**: Omarchy's `accent` > the desktop portal's `accent-color` (GNOME 47+, KDE Plasma; MyGo reads it) > slom's own lime. Only the accent follows. Omarchy's other colors are not used, because theme authors pick their named colors (`yellow`, `green`) by taste, not by role, and amber / cyan / red / green / violet mean something in slom.
+- **Making a chosen accent usable** (`usableAccent`): chroma raised to at least 0.09 so a muted accent still stands out from the grey surfaces (a muted rose becomes a clearer rose, same hue); lightness clamped so it reads on its ground (dark: 0.70-0.95, light: 0.40-0.55); a colorless accent (grey, chroma under 0.015) has no hue, so slom keeps its own. The tints around the accent (selected card, borders, glow) come from its hue.
+- **Live**: MyGo redraws on portal changes. Omarchy replaces its theme directory on every switch and a switch between two dark themes changes nothing in the portal, so slom polls `current/theme.generation` once a second and keeps the last good look while a switch is half done.
+- **Known limits**: an accent near red or amber sits close to the removed or Steam-in-the-way colors (the +/- marks and labels still say which is which). Not followed: high contrast and text scale, other themes' palettes (KDE `kdeglobals`, GTK CSS).

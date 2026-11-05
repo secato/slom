@@ -6,11 +6,13 @@ internal/catalog    option definitions (data), Selection, requires/conflicts/hos
 internal/render     Selection -> launch-option string (slot order, quoting)
 internal/parse      launch-option string -> Selection (inverse of render; keeps unknown tokens); Group/Ungroup chips; Units/Diff
 internal/steam      Steam discovery, VDF spans, game list, localconfig.vdf surgical writer, process control
-internal/store      presets and per-game assignments (JSON under the XDG config dir), Effective/Derive
+internal/desktop    what the desktop says about its look that MyGo does not pass on: Omarchy's active theme (colors.toml: mode, accent) and its switch stamp
+internal/store      presets and per-game assignments, and the look chosen with the sidebar toggle (JSON under the XDG config dir), Effective/Derive
 internal/ui         MyGo screens, the only package allowed to import MyGo: app.go (state, actions), view.go (window,
-                    sidebar, header, tabs, dock, dialogs), cards.go (option cards, More example), theme.go (palette,
-                    fonts, icons), assets/ (fonts with licenses, SVG icons)
-docs/               SPEC, ARCHITECTURE, CATALOG, MYGO, TESTING, RELEASING, screenshot.png (generated)
+                    sidebar, header, tabs, dock, dialogs), cards.go (option cards, More example), theme.go (dark and light palettes,
+                    fonts, icons), accent.go (Oklch, contrast, making a desktop accent usable), look.go (dark/light and accent
+                    from SLOM_THEME, Omarchy, the system; polling Omarchy), assets/ (fonts with licenses, SVG icons)
+docs/               SPEC, ARCHITECTURE, CATALOG, MYGO, TESTING, RELEASING, screenshot.png and screenshot-light.png (generated)
 scripts/            e2e.py (drives the real window)
 packaging/          slom.svg, the application icon (shipped with each release)
 install.sh          Linux installer: release download, checksum, binary, desktop entry, icon

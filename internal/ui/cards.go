@@ -71,7 +71,7 @@ func (a *App) intro(c *ui.Context, name string, master *catalog.Option) {
 	card := ui.Row(c.Key("intro-"+name)).Gap(16).Padding(14, 16).Radius(14).
 		Background(ternary(on, pal.cardOn, pal.card)).Border(1, ternary(on, pal.accentDim, pal.line))
 	if on {
-		card.Shadow(0, 0, 26, 0, ui.RGBA(198, 255, 61, 0.08))
+		card.Shadow(0, 0, 26, 0, pal.accent.Alpha(0.08))
 	}
 	card.Children(func() {
 		ui.Column(c).Grow(1).Gap(2).Children(func() {

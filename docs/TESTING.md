@@ -8,7 +8,9 @@ Run it before every commit.
 - `internal/ui/ui_test.go`: MyGo's windowless `Tester` drives the real view (see `docs/MYGO.md` for its gotchas). `testApp` builds an `App` without a window over fixture games.
 
 ## Screenshot
-`docs/screenshot.png` is generated: `SLOM_SCREENSHOT=$PWD/docs/screenshot.png go test ./internal/ui -run Screenshot` (absolute path). Regenerate it in any commit that changes how the window looks, and look at it.
+`docs/screenshot.png` (dark) and `docs/screenshot-light.png` are generated: `SLOM_SCREENSHOT=$PWD/docs/screenshot.png go test ./internal/ui -run Screenshot` (absolute path; the light one is written next to it). Regenerate both in any commit that changes how the window looks, and look at them.
+
+The look: `look_test.go` drives the dark/light choice with `Tester.SetDark` and `SetPreferences` (a desktop accent), checks the Omarchy and `SLOM_THEME` precedence, and checks the contrast of every palette with several accents. `internal/desktop` has the Omarchy file parser and the switch detection. Tests never read the real Omarchy files: `App.omarchy` is only filled by `Start`.
 
 ## Checks on the real machine (opt-in)
 These touch the owner's real Steam. They restore what they change, but still: **do not run them without the owner's say-so, and never while the owner is playing**. Steam must be closed unless noted.

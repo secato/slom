@@ -158,3 +158,28 @@ func TestNormalizeDropsOrphans(t *testing.T) {
 		t.Fatalf("kept %v", s.Values)
 	}
 }
+
+func TestThemeChoiceIsSavedAndDefaultsToSystem(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Theme() != "system" {
+		t.Fatalf("default %q", s.Theme())
+	}
+	if err := s.SetTheme("light"); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s2.Theme() != "light" {
+		t.Errorf("reopened %q", s2.Theme())
+	}
+	_ = s2.SetTheme("nonsense")
+	if s2.Theme() != "system" {
+		t.Errorf("anything else is system, got %q", s2.Theme())
+	}
+}

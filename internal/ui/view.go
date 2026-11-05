@@ -19,6 +19,7 @@ import (
 // View builds the whole window.
 func (a *App) View(c *ui.Context) {
 	setup()
+	pal = a.look(c)
 	c.SetTheme(gamerTheme())
 	a.ctx = c
 	t := c.Theme()
@@ -173,6 +174,7 @@ func (a *App) sidebar(c *ui.Context) {
 			ui.Text(c, a.busy).TextColor(pal.muted).FontSize(12.5)
 		}
 		a.steamStatus(c)
+		a.themeToggle(c)
 	})
 }
 
@@ -189,7 +191,7 @@ func (a *App) gameRow(c *ui.Context, g *steam.Game, withApply bool) {
 	on := a.cur != nil && a.cur.AppID == g.AppID
 	outer := ui.Row(c.Key("row-" + g.AppID)).Height(56).Radius(12).Gap(4)
 	if on {
-		outer.Background(pal.cardOn).Border(1, pal.accentDim).Shadow(0, 0, 22, 0, ui.RGBA(198, 255, 61, 0.12))
+		outer.Background(pal.cardOn).Border(1, pal.accentDim).Shadow(0, 0, 22, 0, pal.accent.Alpha(0.12))
 	}
 	outer.Children(func() {
 		row := ui.ButtonBase(c.Key("pick-"+g.AppID)).Grow(1).Height(54).Padding(0, 10).Gap(12).Radius(12).Label(g.Name)
@@ -541,11 +543,11 @@ func (a *App) dock(c *ui.Context) {
 	steamLine := a.steamLines[a.cur.AppID]
 	differs := a.differs()
 	ui.Column(c).Radius(14).Background(pal.panel).Border(1, ternary(differs, pal.accentDim, pal.line)).
-		Shadow(0, -10, 30, 0, ui.RGBA(0, 0, 0, 0.4)).Padding(12, 14, 14).Gap(10).Children(func() {
+		Shadow(0, -10, 30, 0, ui.RGBA(0, 0, 0, pal.shadow)).Padding(12, 14, 14).Gap(10).Children(func() {
 		ui.Row(c).Gap(10).Children(func() {
 			display(ui.Text(c, "LAUNCH COMMAND"), 13).TextColor(pal.muted)
 			if differs {
-				pill(c, "not saved yet", ui.Hex("#3A2A0B"), pal.amber)
+				pill(c, "not saved yet", pal.amberPill, pal.amber)
 			} else {
 				pill(c, "matches Steam", pal.cyanDim, pal.cyan)
 			}

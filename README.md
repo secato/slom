@@ -8,6 +8,14 @@ the result into Steam's launch options for you.
 
 ![slom](docs/screenshot.png)
 
+It follows your desktop's dark or light setting and accent color (and the Omarchy theme). The Dark / Light / System switch at the bottom of the sidebar picks one (`SLOM_THEME=dark` or `light` forces it too).
+
+<details><summary>Light look</summary>
+
+![slom, light](docs/screenshot-light.png)
+
+</details>
+
 ## Install
 
 ```sh

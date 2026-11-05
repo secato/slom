@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/secato/slom/internal/catalog"
+	"github.com/secato/slom/internal/desktop"
 	"github.com/secato/slom/internal/parse"
 	"github.com/secato/slom/internal/render"
 	"github.com/secato/slom/internal/steam"
@@ -65,6 +66,11 @@ type App struct {
 	steamCheck     func() bool // asked just before writing; nil asks the system (tests set it)
 	busy           string      // what a background task is doing, "" if idle
 	loadErr        string
+
+	// look
+	themeMode    string        // SLOM_THEME: "dark", "light", or "" for the system's
+	omarchy      *desktop.Look // Omarchy's active theme; nil without Omarchy
+	omarchyStamp string        // changes with every Omarchy theme switch
 }
 
 // New builds the app state: it finds Steam, reads the games and opens the store. Problems
@@ -74,6 +80,7 @@ func New(st *store.Store, backups string) *App {
 		cat: catalog.Default(), store: st, backups: backups,
 		steamLines: map[string]string{}, sidebarSize: 300,
 		chips: map[string][]string{}, chipDraft: map[string]string{}, customRes: map[string]bool{},
+		themeMode: themeModeFromEnv(),
 	}
 	a.tools = catalog.DetectTools(a.cat)
 	return a
@@ -82,8 +89,10 @@ func New(st *store.Store, backups string) *App {
 // Start is called once the window exists.
 func (a *App) Start(win *mygo.Window) {
 	a.win = win
+	a.readOmarchy()
 	a.loadSteam()
 	go a.pollSteam()
+	go a.pollOmarchy()
 }
 
 func (a *App) loadSteam() {

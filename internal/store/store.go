@@ -43,6 +43,12 @@ type Store struct {
 	dir         string
 	presets     []Preset
 	assignments map[string]Assignment
+	settings    settings
+}
+
+// settings are slom's own preferences (settings.json).
+type settings struct {
+	Theme string `json:"theme,omitempty"` // "dark", "light"; anything else follows the system
 }
 
 // DefaultDir is $XDG_CONFIG_HOME/slom, or ~/.config/slom.
@@ -77,6 +83,9 @@ func Open(dir string) (*Store, error) {
 		return nil, err
 	}
 	if err := readJSON(filepath.Join(dir, "assignments.json"), &s.assignments); err != nil {
+		return nil, err
+	}
+	if err := readJSON(filepath.Join(dir, "settings.json"), &s.settings); err != nil {
 		return nil, err
 	}
 	if s.assignments == nil {
@@ -323,4 +332,30 @@ func (a Assignment) Overridden() map[string]bool {
 		out[id] = true
 	}
 	return out
+}
+
+// Theme is the look the user chose: "dark", "light" or "system" (follow the desktop).
+func (s *Store) Theme() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if t := s.settings.Theme; t == "dark" || t == "light" {
+		return t
+	}
+	return "system"
+}
+
+// SetTheme saves the look: "dark", "light"; anything else means "system".
+func (s *Store) SetTheme(t string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if t != "dark" && t != "light" {
+		t = ""
+	}
+	old := s.settings
+	s.settings.Theme = t
+	if err := s.writeJSON("settings.json", s.settings); err != nil {
+		s.settings = old
+		return err
+	}
+	return nil
 }

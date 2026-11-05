@@ -15,8 +15,8 @@ Read first: `docs/SPEC.md` (decisions already made, with the reasons) and `docs/
 - Starting values are fixed usual ones (1920×1080, 60 Hz). Never read the screen, resolution or refresh rate from the machine: the owner has two monitors and detection reported the wrong one.
 - `localconfig.vdf`: write it only while Steam is closed, edit only the `LaunchOptions` value as a text splice, back up first, verify after, restore on failure. Imported tokens slom does not know stay, in order.
 - Never close, restart or write to the owner's real Steam to test something. Real-machine checks are opt-in (`docs/TESTING.md`) and need the owner's say-so.
-- The look is dark and "gamer"; colors are named by meaning in `internal/ui/theme.go` (`pal`): accent = will be applied, amber = Steam in the way, cyan = information, red/green = removed/added. Buttons and labels keep normal case, because tests and `scripts/e2e.py` find them by text.
-- A change to what the window looks like: regenerate `docs/screenshot.png` and look at it. A decision from the owner: write it in `docs/SPEC.md`, in the same commit.
+- The look is "gamer" and follows the desktop (dark or light, and its accent; `docs/SPEC.md`). Colors are named by meaning in `internal/ui/theme.go` (`pal`, one dark and one light palette): accent = will be applied, amber = Steam in the way, cyan = information, red/green = removed/added. Never put a color literal in the view code. Buttons and labels keep normal case, because tests and `scripts/e2e.py` find them by text.
+- A change to what the window looks like: regenerate `docs/screenshot.png` and `docs/screenshot-light.png` and look at both. A decision from the owner: write it in `docs/SPEC.md`, in the same commit.
 - Wording shown to the user is plain English, short, and says what will happen.
 
 ## Commits

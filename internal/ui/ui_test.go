@@ -161,36 +161,44 @@ func TestMissingToolDisablesOption(t *testing.T) {
 	}
 }
 
-// TestScreenshot writes the README screenshot when SLOM_SCREENSHOT is set to a path.
+// TestScreenshot writes the README screenshots when SLOM_SCREENSHOT is set to a path: the dark
+// look there, the light one next to it with "-light" before the extension.
 func TestScreenshot(t *testing.T) {
 	path := os.Getenv("SLOM_SCREENSHOT")
 	if path == "" {
 		t.Skip("set SLOM_SCREENSHOT=$PWD/docs/screenshot.png (absolute path)")
 	}
-	a := testApp(t)
-	a.tools = catalog.Tools{"gamescope": true, "mangohud": true, "gamemoderun": true}
-	tt := ui.NewTester(a.View, 1180, 860)
-	tt.Click("ELDEN RING")
-	a.saveAsPreset("RTX sharp")
-	a.tab = 2 // Gamescope
-	a.steamRunning = true
-	a.sel.CustomWrap = []string{"taskset", "-c", "0-7"}
-	for _, kv := range [][2]string{{"gs.out_w", "2560"}, {"gs.out_h", "1440"}, {"gs.in_w", "1920"}, {"gs.in_h", "1080"}, {"gs.refresh", "165"}, {"gs.filter", "fsr"}, {"gs.force_grab", "1"}, {"mh.position", "top-right"}, {"mh.frametime", "1"}, {"gamemode", "1"}} {
-		a.setOption(kv[0], kv[1])
-	}
-	tt.Frame()
-	// rest the pointer on a label so the screenshot shows a tooltip
-	if r, ok := tt.Find("Refresh rate"); ok {
-		tt.Move(r.X+r.W/2, r.Y+r.H/2)
-		tt.Advance(time.Second)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	if err := png.Encode(f, tt.Image()); err != nil {
-		t.Fatal(err)
+	for _, dark := range []bool{true, false} {
+		a := testApp(t)
+		a.tools = catalog.Tools{"gamescope": true, "mangohud": true, "gamemoderun": true}
+		tt := ui.NewTester(a.View, 1180, 860)
+		tt.SetDark(dark)
+		tt.Click("ELDEN RING")
+		a.saveAsPreset("RTX sharp")
+		a.tab = 2 // Gamescope
+		a.steamRunning = true
+		a.sel.CustomWrap = []string{"taskset", "-c", "0-7"}
+		for _, kv := range [][2]string{{"gs.out_w", "2560"}, {"gs.out_h", "1440"}, {"gs.in_w", "1920"}, {"gs.in_h", "1080"}, {"gs.refresh", "165"}, {"gs.filter", "fsr"}, {"gs.force_grab", "1"}, {"mh.position", "top-right"}, {"mh.frametime", "1"}, {"gamemode", "1"}} {
+			a.setOption(kv[0], kv[1])
+		}
+		tt.Frame()
+		// rest the pointer on a label so the screenshot shows a tooltip
+		if r, ok := tt.Find("Refresh rate"); ok {
+			tt.Move(r.X+r.W/2, r.Y+r.H/2)
+			tt.Advance(time.Second)
+		}
+		out := path
+		if !dark {
+			out = strings.TrimSuffix(path, ".png") + "-light.png"
+		}
+		f, err := os.Create(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
 	}
 }
 
