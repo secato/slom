@@ -253,10 +253,15 @@ func (a *App) applyAll(c *ui.Context, pend []*steam.Game) {
 	}
 }
 
-// gameSummary lists the groups the game sets something in: "DLSS, Gamescope". Where the game
-// runs (native or Proton) is not shown: the Proton prefix says only that the game ran through
-// Proton once, not how it runs now.
+// gameSummary is the preset the game uses, or else the groups it sets something in: "DLSS,
+// Gamescope". Where the game runs (native or Proton) is not shown: the Proton prefix says only
+// that the game ran through Proton once, not how it runs now.
 func (a *App) gameSummary(g *steam.Game) string {
+	if as, ok := a.store.Assignment(g.AppID); ok {
+		if p := a.preset(as.PresetID); p != nil {
+			return p.Name
+		}
+	}
 	sel := a.selectionOf(g.AppID)
 	used := map[string]bool{}
 	for id := range sel.Values {

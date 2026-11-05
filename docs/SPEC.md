@@ -54,7 +54,7 @@ indicator), Gamescope (sizes, refresh, window and input, scaling, HDR, frame lim
 - **Look**: "gamer", and it follows the desktop: dark or light, and the desktop's accent (see **Theme following** below). One accent color means "this will be applied", amber means
   Steam is in the way, cyan is information, red/green mark removed/added. Titles in Rajdhani,
   commands in JetBrains Mono. Everything must be buildable from MyGo parts, no webview.
-- **Sidebar**: games with a tile in their own color. The subtitle lists the **categories the
+- **Sidebar**: games with a tile in their own color. The subtitle is the **preset** the game uses, or, without one, the **categories the
   game sets** ("DLSS, Gamescope", "More", "Nothing set"). It does not say Proton or Native: a
   Proton prefix only shows the game ran through Proton once. Games whose line differs from
   Steam's sit under **PENDING APPLY**; each has a bolt button that applies it, and two or more

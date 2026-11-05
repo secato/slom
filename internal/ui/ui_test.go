@@ -624,3 +624,29 @@ func TestSavedExtraBecomesTheControlThatNowExists(t *testing.T) {
 		t.Errorf("not saved in the new shape: %+v", saved)
 	}
 }
+
+func TestSidebarShowsThePresetOfAGameThatUsesOne(t *testing.T) {
+	a := testApp(t)
+	tt := ui.NewTester(a.View, 1180, 860)
+	tt.Click("ELDEN RING")
+	a.saveAsPreset("RTX sharp")
+	tt.Frame()
+	var elden, dota *steam.Game
+	for i := range a.games {
+		switch a.games[i].AppID {
+		case "1245620":
+			elden = &a.games[i]
+		case "570":
+			dota = &a.games[i]
+		}
+	}
+	if got := a.gameSummary(elden); got != "RTX sharp" {
+		t.Errorf("a game with a preset shows it: %q", got)
+	}
+	if got := a.gameSummary(dota); got != "Gamescope" {
+		t.Errorf("a game without one still lists its categories: %q", got)
+	}
+	if !tt.HasText("RTX sharp") {
+		t.Error("the preset name is in the sidebar")
+	}
+}
